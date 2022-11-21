@@ -238,4 +238,3 @@ function _provision_drupal_search_paths($scope, $key = '', $type = 'modules') {
   }
   return $searchpaths;
 }
-

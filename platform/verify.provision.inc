@@ -58,7 +58,7 @@ function drush_provision_drupal_pre_provision_verify() {
 
     drush_log(dt("Checking for platform at path @path...", array('@path' => d()->root)), 'debug');
     drush_log(dt("Platform makefile: @makefile", array('@makefile' => d()->makefile)), 'debug');
-    
+
     // Create a platform from a makefile, if it doesnt already exist and the makefile does.
     if (!provision_file()->exists(d()->root)->status() && !empty(d()->makefile)) {
       drush_log(dt("Platform path does not exist, fetching from drush makefile"), 'notice');
@@ -70,7 +70,7 @@ function drush_provision_drupal_pre_provision_verify() {
       }
       $arguments[] = d()->makefile;
       $arguments[] = d()->root;
-      
+
       // Change current directory to makefile's directory until Drush fixes this bug: https://github.com/drush-ops/drush/issues/2482
       // @TODO: Remove this once is committed.
       if (!empty(d()->makefile) && file_exists(dirname(d()->makefile))) {

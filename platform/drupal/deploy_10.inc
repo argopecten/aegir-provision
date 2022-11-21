@@ -59,4 +59,3 @@ function _provision_platform_drupal_deploy_9_replace($old_url, $new_url) {
     dt('Changed paths from sites/@old_url to sites/@new_url',
     array('@old_url' => $old_url, '@new_url' => $new_url)));
 }
-
