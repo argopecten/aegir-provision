@@ -10,6 +10,8 @@
 class Provision_Service_db_mysql extends Provision_Service_db_pdo {
   public $PDO_type = 'mysql';
 
+  protected $safe_shell_exec_output = '';
+
   protected $has_port = TRUE;
 
   function default_port() {
