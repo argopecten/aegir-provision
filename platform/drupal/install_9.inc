@@ -108,10 +108,8 @@ function install_main() {
     $db_spec['driver'] = 'mysql';
   }
 
-  if (isset($config)) {
-    unset($config['site_name']);
-    unset($config['site_mail']);
-  }
+  unset($config['site_name']);
+  unset($config['site_mail']);
   unset($GLOBALS['db_url']);
 
   $account_pass = provision_password();
@@ -161,6 +159,10 @@ function install_main() {
     ->set('path.private', "sites/$url/private/files")
     ->set('path.temporary', "sites/$url/private/temp")
     ->save();
+
+  // Add platform root auto-discovery to avoid confusing
+  // Composer based D9 codebase root with Drupal real root.
+  d()->root = provision_auto_fix_platform_root(d()->root);
 
   $account = \Drupal\user\Entity\User::load(1);
 

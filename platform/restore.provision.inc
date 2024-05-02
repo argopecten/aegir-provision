@@ -4,6 +4,7 @@
  * Make sure we have a valid site being restored, and that the file being restored from exists
  */
 function drush_provision_drupal_provision_restore_validate($restore_file = null) {
+  provision_lock_some_vnd();
   drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_SITE);
 
   $exists = provision_file()->exists($restore_file)
@@ -22,6 +23,7 @@ function drush_provision_drupal_pre_provision_restore($restore_file) {
   drush_log(dt("Putting site under maintenance"));
   d()->site_enabled = false;
   _provision_drupal_create_settings_file();
+  drush_log(dt('Invoking drush provision-backup in drush_provision_drupal_pre_provision_restore'));
   drush_invoke('provision-backup');
 }
 
@@ -49,4 +51,3 @@ function drush_provision_drupal_provision_restore($restore_file) {
     drush_set_option('installed', false);
   }
 }
-

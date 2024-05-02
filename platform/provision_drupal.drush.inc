@@ -56,7 +56,7 @@ function provision_drupal_drush_exit() {
   if (preg_match("/^provision-/", $command[0]) && drush_get_option('provision_save_config', TRUE)) {
 
     // Add platform root auto-discovery to avoid confusing
-    // Composer based D8 codebase root with Drupal real root.
+    // Composer based D8+ codebase root with Drupal real root.
     d()->root = provision_auto_fix_platform_root(d()->root);
 
     if (d()->type === 'site') {
@@ -113,7 +113,7 @@ function provision_drupal_push_site($override_slave_authority = FALSE) {
   ));
 
   // Add platform root auto-discovery to avoid confusing
-  // Composer based D8 codebase root with Drupal real root.
+  // Composer based D8+ codebase root with Drupal real root.
   d()->root = provision_auto_fix_platform_root(d()->root);
 
   // Sync the platform
@@ -192,8 +192,6 @@ function _provision_drupal_create_settings_file() {
  *   The url of the site being invoked.
   */
 function _provision_drupal_create_directories($url = NULL) {
-  // Ensure that the stat cache is cleared, so that we have an up-to-date view of the filesystem.
-  clearstatcache();
   if (is_null($url)) {
     if (d()->type == 'site') {
       $url = d()->uri;
@@ -390,7 +388,7 @@ function _provision_drupal_create_directories($url = NULL) {
 function _provision_drupal_ensure_htaccess_update() {
 
   // Add platform root auto-discovery to avoid confusing
-  // Composer based D8 codebase root with Drupal real root.
+  // Composer based D8+ codebase root with Drupal real root.
   d()->root = provision_auto_fix_platform_root(d()->root);
 
   if (drush_drupal_major_version() == 7) {
@@ -451,7 +449,9 @@ function _provision_drupal_ensure_htaccess_update() {
  */
 function _provision_drupal_rebuild_caches() {
   if (d()->type === 'site') {
-    drush_include_engine('drupal', 'clear');
+    if (drush_drupal_major_version() < 12) {
+      drush_include_engine('drupal', 'clear');
+    }
   }
 }
 
@@ -482,7 +482,7 @@ function provision_drupal_find_sites() {
 function provision_drupal_find_aliases() {
 
   // Add platform root auto-discovery to avoid confusing
-  // Composer based D8 codebase root with Drupal real root.
+  // Composer based D8+ codebase root with Drupal real root.
   d()->root = provision_auto_fix_platform_root(d()->root);
 
   $aliases = array();
@@ -519,7 +519,7 @@ function provision_drupal_find_aliases() {
 function _provision_drupal_maintain_aliases() {
 
   // Add platform root auto-discovery to avoid confusing
-  // Composer based D8 codebase root with Drupal real root.
+  // Composer based D8+ codebase root with Drupal real root.
   d()->root = provision_auto_fix_platform_root(d()->root);
 
   if (d()->type === 'site') {
@@ -551,7 +551,7 @@ function _provision_drupal_maintain_aliases() {
 function _provision_drupal_delete_aliases() {
 
   // Add platform root auto-discovery to avoid confusing
-  // Composer based D8 codebase root with Drupal real root.
+  // Composer based D8+ codebase root with Drupal real root.
   d()->root = provision_auto_fix_platform_root(d()->root);
 
   if (d()->type === 'site') {
@@ -618,10 +618,10 @@ function _provision_find_packages($scope, $key = '') {
     $packages[$type] = array();
     $func = "_provision_drupal_find_$type";
     $result = $func($scope, $key);
-    if (sizeof($result)) {
+    if (count($result)) {
       $packages[$type] = $result;
       drush_log(dt("Found !count !type in !scope",
-        array('!count' => sizeof($result),
+        array('!count' => count($result),
         '!scope' => $scope_text, '!type' => $type)));
     }
   }
@@ -662,7 +662,7 @@ function _provision_drupal_find_modules($scope, $key = '') {
     foreach ($paths as $path) {
       $files = array_merge($files, drush_scan_directory($path, "/\.module$/", array('.', '..', 'CVS', '.svn'), 0, TRUE, 'name'));
     }
-  } 
+  }
 
   foreach ($files as $name => $info) {
     if (drush_drupal_major_version() >= 8) {
@@ -706,7 +706,7 @@ function _provision_drupal_find_modules($scope, $key = '') {
       // Also search included files for function signature
       $include_matches = array();
       preg_match_all('!^\s*(include|require)(_once)?[\s\.\w\(]+([\'\"]{1}([\\\s\w\-\.\/]*)[\'\"]{1})!m', $source, $include_matches);
-      if (sizeof($include_matches[0])) {
+      if (count($include_matches[0])) {
         foreach($include_matches[4] as $include) {
           if ($include_file = realpath(dirname($info->filename) . DIRECTORY_SEPARATOR . $include)) {
             $source .= "\n" . file_get_contents($include_file);
@@ -716,7 +716,7 @@ function _provision_drupal_find_modules($scope, $key = '') {
       $function_matches = array();
         preg_match_all('!function\s*&?([a-zA-Z0-9_]+)_update_([0-9]+)\s*\(.*?\s*\{!', $source, $function_matches);
 
-      if (sizeof($function_matches[0])) {
+      if (count($function_matches[0])) {
         $schema_version = max($schema_version, max($function_matches[2]));
       }
     }
@@ -724,7 +724,7 @@ function _provision_drupal_find_modules($scope, $key = '') {
 
     // If version is missing, or if version is set to 'VERSION', use "drush_drupal_version()".
     // The VERSION constant used in Git checkouts. Also appears when using DEV modules in composer.
-    if (empty($files[$name]->info['version']) || !isset($files[$name]->version) || $files[$name]->version == 'VERSION') {
+    if (empty($files[$name]->info['version']) || $files[$name]->info['version'] == 'VERSION') {
       $files[$name]->version = drush_drupal_version();
     }
     else {
@@ -795,7 +795,7 @@ function provision_reload_config($context, $file = NULL) {
     drush_log("Reloading $context drushrc.php from $file");
     include($file);
     // $options will be defined by the config file included above.
-    if (sizeof($options)) {
+    if (count($options)) {
       $options = array_merge(drush_get_context($context, array()), $options);
       drush_set_context($context, $options);
     }
