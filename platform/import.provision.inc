@@ -12,7 +12,14 @@
  */
 function drush_provision_drupal_provision_import() {
   if (d()->type === 'site') {
-    drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
+    provision_lock_some_vnd();
+    if (drush_drupal_major_version() < 12) {
+      drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
+    }
+    else {
+      drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION);
+      drush_log("Skipping FULL bootstrap for drupal 12+ in drush_provision_drupal_provision_import");
+    }
     drush_include_engine('drupal', 'import', drush_drupal_major_version());
     drush_set_option('installed', TRUE, 'site');
   }
@@ -54,4 +61,3 @@ function drush_provision_drupal_post_provision_import() {
     provision_reload_config('site');
   }
 }
-

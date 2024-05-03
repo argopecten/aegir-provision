@@ -51,7 +51,7 @@ if (isset($_SERVER['db_name'])) {
     'port' => (string) $_SERVER['db_port'],
 <?php if ($utf8mb4_is_configurable && $utf8mb4_is_supported): ?>
     'charset' => 'utf8mb4',
-    'collation' => 'utf8mb4_general_ci',
+    'collation' => 'utf8mb4_unicode_ci',
 <?php endif; ?>
   );
   $db_url['default'] = $_SERVER['db_type'] . '://' . $_SERVER['db_user'] . ':' . $_SERVER['db_passwd'] . '@' . $_SERVER['db_host'] . ':' . $_SERVER['db_port'] . '/' . $_SERVER['db_name'];
@@ -64,19 +64,19 @@ if (isset($_SERVER['db_name'])) {
    * places.
    */
   if (function_exists('apache_setenv')) {
-    apache_setenv('db_type', '');
-    apache_setenv('db_user', '');
-    apache_setenv('db_passwd', '');
-    apache_setenv('db_host', '');
-    apache_setenv('db_port', '');
-    apache_setenv('db_name', '');
+    apache_setenv('db_type', null);
+    apache_setenv('db_user', null);
+    apache_setenv('db_passwd', null);
+    apache_setenv('db_host', null);
+    apache_setenv('db_port', null);
+    apache_setenv('db_name', null);
     // no idea why they are also in REDIRECT_foo, but they are
-    apache_setenv('REDIRECT_db_type', '');
-    apache_setenv('REDIRECT_db_user', '');
-    apache_setenv('REDIRECT_db_passwd', '');
-    apache_setenv('REDIRECT_db_host', '');
-    apache_setenv('REDIRECT_db_port', '');
-    apache_setenv('REDIRECT_db_name', '');
+    apache_setenv('REDIRECT_db_type', null);
+    apache_setenv('REDIRECT_db_user', null);
+    apache_setenv('REDIRECT_db_passwd', null);
+    apache_setenv('REDIRECT_db_host', null);
+    apache_setenv('REDIRECT_db_port', null);
+    apache_setenv('REDIRECT_db_name', null);
   }
   unset($_SERVER['db_type']);
   unset($_SERVER['db_user']);
@@ -100,6 +100,10 @@ if (isset($_SERVER['db_name'])) {
     'password' => "<?php print $this->creds['db_passwd']; ?>",
     'host' => "<?php print $this->creds['db_host']; ?>",
     'port' => "<?php print $this->creds['db_port']; ?>",
+<?php if ($utf8mb4_is_configurable && $utf8mb4_is_supported): ?>
+    'charset' => 'utf8mb4',
+    'collation' => 'utf8mb4_unicode_ci',
+<?php endif; ?>
    );
   $db_url['default'] = "<?php print strtr("%db_type://%db_user:%db_passwd@%db_host:%db_port/%db_name", array(
     '%db_type' => $this->creds['db_type'],
@@ -112,7 +116,7 @@ if (isset($_SERVER['db_name'])) {
 <?php endif; ?>
 
   /**
-  * PHP settings:
+  * PHP settings: (managed in BOA via site and platform level INI files)
   *
   * To see what PHP settings are possible, including whether they can
   * be set at runtime (ie., when ini_set() occurs), read the PHP
@@ -121,10 +125,10 @@ if (isset($_SERVER['db_name'])) {
   * settings are used there. Settings defined here should not be
   * duplicated there so as to avoid conflict issues.
   */
-  ini_set('session.gc_probability', 1);
-  ini_set('session.gc_divisor', 100);
-  ini_set('session.gc_maxlifetime', 200000);
-  ini_set('session.cookie_lifetime', 2000000);
+  //ini_set('session.gc_probability', 1);
+  //ini_set('session.gc_divisor', 100);
+  //ini_set('session.gc_maxlifetime', 200000);
+  //ini_set('session.cookie_lifetime', 2000000);
 
   /**
   * Set the umask so that new directories created by Drupal have the correct permissions
