@@ -12,6 +12,7 @@
  */
 function drush_provision_drupal_provision_verify_validate() {
   if (d()->type === 'site') {
+    provision_lock_some_vnd();
     drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_SITE);
     provision_prepare_environment();
 
@@ -19,7 +20,13 @@ function drush_provision_drupal_provision_verify_validate() {
     provision_drupal_push_site();
 
     drush_errors_on();
-    drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
+    if (drush_drupal_major_version() < 12) {
+      drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
+    }
+    else {
+      drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION);
+      drush_log("Skipping FULL bootstrap for drupal 12+ in drush_provision_drupal_provision_verify_validate");
+    }
   }
 }
 
@@ -33,9 +40,9 @@ function drush_provision_drupal_pre_provision_verify() {
     $config_root = dirname(d()->config_path);
     provision_file()->create_dir($config_root, dt('Provision configuration root'), 0711);
     provision_file()->create_dir(d()->config_path, dt('Provision configuration'), 0711);
-    provision_file()->create_dir(d()->clients_path, dt('Provision client home'), 0711);
+    provision_file()->create_dir(d()->clients_path, dt('Provision client home'), 0750);
     if (d()->name == '@server_master') {
-      provision_file()->create_dir(d()->backup_path, dt('Backup'), 0700);
+      provision_file()->create_dir(d()->backup_path, dt('Backup'), 0750);
       provision_file()->create_dir(d()->include_path, dt('Provision PHP configuration'), 0711);
       if (!provision_file()->exists(d()->include_path . '/global.inc')->succeed('Global configuration file exists')->status()) {
         // Create an empty global.inc so the include doesn't fail with
@@ -58,7 +65,7 @@ function drush_provision_drupal_pre_provision_verify() {
 
     drush_log(dt("Checking for platform at path @path...", array('@path' => d()->root)), 'debug');
     drush_log(dt("Platform makefile: @makefile", array('@makefile' => d()->makefile)), 'debug');
-    
+
     // Create a platform from a makefile, if it doesnt already exist and the makefile does.
     if (!provision_file()->exists(d()->root)->status() && !empty(d()->makefile)) {
       drush_log(dt("Platform path does not exist, fetching from drush makefile"), 'notice');
@@ -70,7 +77,7 @@ function drush_provision_drupal_pre_provision_verify() {
       }
       $arguments[] = d()->makefile;
       $arguments[] = d()->root;
-      
+
       // Change current directory to makefile's directory until Drush fixes this bug: https://github.com/drush-ops/drush/issues/2482
       // @TODO: Remove this once is committed.
       if (!empty(d()->makefile) && file_exists(dirname(d()->makefile))) {
@@ -86,11 +93,11 @@ function drush_provision_drupal_pre_provision_verify() {
 
     // Composer Install Support
     // Step 0: if drush variable allows composer install on platforms, and check for composer executable fails, show warning.
-    if (drush_get_option('provision_composer_install_platforms', TRUE) && !shell_exec('composer')) {
+    if (drush_get_option('provision_composer_install_platforms', FALSE) && !shell_exec('composer')) {
       drush_log(dt('The composer executable was not found. Install composer using instructions located at https://getcomposer.org/doc/00-intro.md#globally or, if you wish to disable composer install, set "provision_composer_install_platforms" to FALSE in the ~/.drush/drushrc.php file.'), 'warning');
     }
     // If drush variable allows composer install on platforms (and composer exec passed)...
-    elseif (drush_get_option('provision_composer_install_platforms', TRUE)) {
+    elseif (drush_get_option('provision_composer_install_platforms', FALSE)) {
       // Detect composer-based platform and run composer install if it has not been run yet.
       // Step 1: Look for composer directory. Could be Drupal root. Could be the git repo_root.
       if (provision_file()->exists(d()->root . DIRECTORY_SEPARATOR . 'composer.json')->status()) {
@@ -103,7 +110,7 @@ function drush_provision_drupal_pre_provision_verify() {
       // Step 2: Run composer install if composer.json is present.
       // If drush option provision_composer_install_platforms_verify_always is set to
       // false, only run `composer-install` if ./vendor directory is missing.
-      if (isset($composer_directory) && (!file_exists($composer_directory . DIRECTORY_SEPARATOR . 'vendor') || drush_get_option('provision_composer_install_platforms_verify_always', TRUE))) {
+      if (isset($composer_directory) && (!file_exists($composer_directory . DIRECTORY_SEPARATOR . 'vendor') || drush_get_option('provision_composer_install_platforms_verify_always', FALSE))) {
 
         // Composer Install command: Do not interact, do not show download progress.
         // Customizable by setting drush option 'provision_composer_install_command'
@@ -128,27 +135,14 @@ function drush_provision_drupal_pre_provision_verify() {
         $error = "$type: {$error[0]}";
       }
       return drush_set_error("DRUSH_INVALID_DRUPAL_ROOT",
-        dt("A Drupal codebase was not found in @path. Please check that the directory exists and Drupal's index.php file is present. Check the Publish Path of the platform, the directory exists, contains Drupal, and is readable.  and try again. The errors were: @errors", array(
+        dt("A Drupal codebase was not found in @path. Please check that the directory exists and Drupal's index.php file is present. Check if the Publish Path of the platform exists, contains Drupal and is readable, then try again. The errors were: @errors", array(
           '@path' => d()->root,
           '@errors' => implode('|', $errors)
         )));
     }
 
-    $features = drush_get_option('hosting_features', array());
-    if (array_key_exists('fix_ownership', $features) && $features['fix_ownership']) {
-      // Fix ownership early enough
-      $success = drush_shell_exec("sudo /usr/local/bin/fix-drupal-platform-ownership.sh --root=%s --script-user=%s --web-group=%s", d()->root, d()->server->script_user, d()->server->web_group);
-      $result = drush_shell_exec_output();
-      foreach ($result as $index => $line) {
-        if (!$success) { // Log the entire error as a warning.
-          $line_status = 'warning';
-        }
-        else { // Only log the last line as success.
-          $line_status = $index+1 == count($result) ? 'success' : 'notice';
-        }
-        drush_log($line, $line_status);
-      }
-    }
+    // Fix ownership early enough
+    $success = drush_shell_exec("sudo --non-interactive /usr/local/bin/fix-drupal-platform-ownership.sh --root=%s --script-user=%s --web-group=%s", d()->root, d()->server->script_user, d()->server->web_group);
 
     provision_file()->writable(d()->root . '/sites')
       ->succeed('Drupal sites directory @path is writable by the provisioning script')
@@ -163,7 +157,7 @@ function drush_provision_drupal_pre_provision_verify() {
     }
 
     drush_set_option('sites', array_keys((array) provision_drupal_find_sites()), 'drupal');
-    drush_log(dt("This platform is running @short_name @version", array('@short_name' => 'drupal', '@version' => drush_drupal_version())));
+    drush_log(dt("This platform is running @short_name @version", array('@short_name' => 'drupal', '@version' => drush_drupal_version())), 'info');
     drush_set_option('packages', _scrub_object(provision_find_packages()), 'drupal');
     provision_drupal_push_site();
   }
@@ -206,7 +200,9 @@ function drush_provision_drupal_post_provision_verify() {
   d()->root = provision_auto_fix_platform_root(d()->root);
 
   if (d()->type === 'site') {
-    _provision_drupal_rebuild_caches();
+    if (drush_drupal_major_version() < 12) {
+      _provision_drupal_rebuild_caches();
+    }
     drush_set_option('installed', TRUE, 'site');
 
     _provision_client_create_symlink();
@@ -220,5 +216,8 @@ function drush_provision_drupal_post_provision_verify() {
         ->succeed('Cleaned up unused Aegir services.yml file.')
         ->fail('Failed to clean up unused Aegir services.yml file.', 'PROVISION_DELETE_AEGIR_SERVICES_YML_FAILED');
     }
+  }
+  if (d()->type === 'platform') {
+    provision_lock_some_vnd();
   }
 }

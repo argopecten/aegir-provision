@@ -16,6 +16,9 @@ const PROVISION_BACKUP_EXCLUDED_DIRECTORIES = array(
  * Make sure the site is installed and enabled, and that we have a valid target to back up to.
  */
 function drush_provision_drupal_provision_backup_validate($backup_file = NULL) {
+
+  provision_lock_some_vnd();
+
   if (!@drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION)) {
     if (drush_get_option('force', false)) {
       drush_log("clearing error");
@@ -24,7 +27,7 @@ function drush_provision_drupal_provision_backup_validate($backup_file = NULL) {
   }
   if (!drush_get_option('installed') && !drush_get_option('force', false)) {
      drush_set_error('PROVISION_DRUPAL_SITE_NOT_FOUND');
-   }
+  }
 
   // This is the actual drupal provisioning requirements.
   if (!is_dir(d()->platform->server->backup_path)) {
@@ -36,7 +39,7 @@ function drush_provision_drupal_provision_backup_validate($backup_file = NULL) {
       drush_set_error('PROVISION_BACKUP_ALREADY_EXISTS', dt('Back up file @path already exists.', array('@path' => $backup_file)));
     }
     else {
-      drush_log(dt('Backing site up to @path.', array('@path' => $backup_file)));
+      drush_log(dt('Backing site up to @path.', array('@path' => $backup_file)), 'info');
       drush_set_option('backup_file', $backup_file);
     }
   }
@@ -52,7 +55,7 @@ function drush_provision_drupal_provision_backup_validate($backup_file = NULL) {
  * Util function to suggest a filename for a new site backup.
  */
 function drush_provision_drupal_provision_backup_suggest_filename() {
-  $suffix = drush_get_option('provision_backup_suffix', '.tar.gz');
+  $suffix = drush_get_option('provision_backup_suffix', '.tar');
   $suggested = d()->platform->server->backup_path . '/' . d()->uri . '-' . date("Ymd.His", time()) . $suffix;
 
   // Use format of mysite.com-2008-01-02, if already existing, add number.
@@ -160,7 +163,7 @@ function drush_provision_drupal_post_provision_backup() {
  */
 function drush_provision_drupal_provision_backup_rollback() {
   $backup_file = drush_get_option('backup_file');
-  if (file_exists($backup_file)) {
+  if (is_readable($backup_file) && is_file($backup_file)) {
     provision_file()->unlink($backup_file)
       ->succeed('Removed stale backup file @path')
       ->fail('Failed deleting backup file @path');

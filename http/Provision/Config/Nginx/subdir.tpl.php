@@ -1,22 +1,34 @@
 <?php $this->root = provision_auto_fix_platform_root($this->root); ?>
 
 <?php
-$script_user = drush_get_option('script_user');
+$script_user = d('@server_master')->script_user;
+if (!$script_user) {
+  $script_user = drush_get_option('script_user');
+}
 if (!$script_user && $server->script_user) {
   $script_user = $server->script_user;
 }
 
-$aegir_root = drush_get_option('aegir_root');
+$aegir_root = d('@server_master')->aegir_root;
+if (!$aegir_root) {
+  $aegir_root = drush_get_option('aegir_root');
+}
 if (!$aegir_root && $server->aegir_root) {
   $aegir_root = $server->aegir_root;
 }
 
-$nginx_config_mode = drush_get_option('nginx_config_mode');
+$nginx_config_mode = d('@server_master')->nginx_config_mode;
+if (!$nginx_config_mode) {
+  $nginx_config_mode = drush_get_option('nginx_config_mode');
+}
 if (!$nginx_config_mode && $server->nginx_config_mode) {
   $nginx_config_mode = $server->nginx_config_mode;
 }
 
-$phpfpm_mode = drush_get_option('phpfpm_mode');
+$phpfpm_mode = d('@server_master')->phpfpm_mode;
+if (!$phpfpm_mode) {
+  $phpfpm_mode = drush_get_option('phpfpm_mode');
+}
 if (!$phpfpm_mode && $server->phpfpm_mode) {
   $phpfpm_mode = $server->phpfpm_mode;
 }
@@ -25,32 +37,42 @@ if (!$phpfpm_mode && $server->phpfpm_mode) {
 // See Provision_Service_http_nginx_ssl for details.
 $phpfpm_socket_path = Provision_Service_http_nginx::getPhpFpmSocketPath();
 
-$nginx_is_modern = drush_get_option('nginx_is_modern');
+$nginx_is_modern = d('@server_master')->nginx_is_modern;
+if (!$nginx_is_modern) {
+  $nginx_is_modern = drush_get_option('nginx_is_modern');
+}
 if (!$nginx_is_modern && $server->nginx_is_modern) {
   $nginx_is_modern = $server->nginx_is_modern;
 }
 
-$nginx_has_etag = drush_get_option('nginx_has_etag');
+$nginx_has_etag = d('@server_master')->nginx_has_etag;
+if (!$nginx_has_etag) {
+  $nginx_has_etag = drush_get_option('nginx_has_etag');
+}
 if (!$nginx_has_etag && $server->nginx_has_etag) {
   $nginx_has_etag = $server->nginx_has_etag;
 }
 
-$nginx_has_http2 = drush_get_option('nginx_has_http2');
+$nginx_has_http2 = d('@server_master')->nginx_has_http2;
+if (!$nginx_has_http2) {
+  $nginx_has_http2 = drush_get_option('nginx_has_http2');
+}
 if (!$nginx_has_http2 && $server->nginx_has_http2) {
   $nginx_has_http2 = $server->nginx_has_http2;
 }
 
-$nginx_has_gzip = drush_get_option('nginx_has_gzip');
+$nginx_has_gzip = d('@server_master')->nginx_has_gzip;
+if (!$nginx_has_gzip) {
+  $nginx_has_gzip = drush_get_option('nginx_has_gzip');
+}
 if (!$nginx_has_gzip && $server->nginx_has_gzip) {
   $nginx_has_gzip = $server->nginx_has_gzip;
 }
 
-$nginx_has_upload_progress = drush_get_option('nginx_has_upload_progress');
-if (!$nginx_has_upload_progress && $server->nginx_has_upload_progress) {
-  $nginx_has_upload_progress = $server->nginx_has_upload_progress;
+$satellite_mode = d('@server_master')->satellite_mode;
+if (!$satellite_mode) {
+  $satellite_mode = drush_get_option('satellite_mode');
 }
-
-$satellite_mode = drush_get_option('satellite_mode');
 if (!$satellite_mode && $server->satellite_mode) {
   $satellite_mode = $server->satellite_mode;
 }
@@ -210,7 +232,7 @@ location ^~ /<?php print $subdir; ?> {
   ###
   ### Deny not compatible request methods without 405 response.
   ###
-  if ( $request_method !~ ^(?:GET|HEAD|POST|PUT|DELETE|OPTIONS)$ ) {
+  if ( $request_method !~ ^(?:GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)$ ) {
     return 403;
   }
 
@@ -255,7 +277,7 @@ location ^~ /<?php print $subdir; ?> {
     gzip_http_version 1.1;
     if_modified_since exact;
     set $nocache_details "Skip";
-    location ~* ^/<?php print $subdir; ?>/(cdn/farfuture/.+\.(?:css|js|jpe?g|gif|png|ico|bmp|svg|swf|pdf|docx?|xlsx?|pptx?|tiff?|txt|rtf|class|otf|ttf|woff2?|eot|less))$ {
+    location ~* ^/<?php print $subdir; ?>/(cdn/farfuture/.+\.(?:css|js|jpe?g|gif|png|ico|webp|bmp|svg|swf|pdf|docx?|xlsx?|pptx?|tiff?|txt|rtf|class|otf|ttf|woff2?|eot|less))$ {
       expires max;
       add_header X-Header "CDN Far Future Generator 1.0";
       add_header Cache-Control "no-transform, public";
@@ -392,23 +414,6 @@ location ^~ /<?php print $subdir; ?> {
     }
   }
 
-<?php if ($nginx_has_upload_progress): ?>
-  ###
-  ### Upload progress support.
-  ### https://drupal.org/project/filefield_nginx_progress
-  ### http://github.com/masterzen/nginx-upload-progress-module
-  ###
-  location ~ (?<upload_form_uri>.*)/x-progress-id:(?<upload_id>\d*) {
-    access_log off;
-    rewrite ^ $upload_form_uri?X-Progress-ID=$upload_id;
-  }
-  location ^~ /<?php print $subdir; ?>/progress {
-    access_log off;
-    upload_progress_json_output;
-    report_uploads uploads;
-  }
-<?php endif; ?>
-
 <?php if ($satellite_mode == 'boa'): ?>
   ###
   ### Deny cache details display.
@@ -446,8 +451,21 @@ location ^~ /<?php print $subdir; ?> {
     if ( $is_bot ) {
       return 403;
     }
+    access_log off;
     set $nocache_details "Skip";
-    try_files /civicrm $uri @drupal_<?php print $subdir_loc; ?>;
+    try_files $uri @drupal_<?php print $subdir_loc; ?>;
+  }
+
+  ###
+  ### Avoid caching /civicrm* requests, but protect from bots on a multi-lingual site
+  ###
+  location ^~ /<?php print $subdir; ?>/\w\w/civicrm {
+    if ( $is_bot ) {
+      return 403;
+    }
+    access_log off;
+    set $nocache_details "Skip";
+    try_files $uri @drupal_<?php print $subdir_loc; ?>;
   }
 
   ###
@@ -469,7 +487,7 @@ location ^~ /<?php print $subdir; ?> {
   ###
   ### Deny listed requests for security reasons.
   ###
-  location ~* (\.(?:git.*|htaccess|engine|config|inc|ini|info|install|make|module|profile|test|pl|po|sh|.*sql|theme|tpl(\.php)?|xtmpl)(~|\.sw[op]|\.bak|\.orig|\.save)?$|^(\..*|Entries.*|Repository|Root|Tag|Template|composer\.(json|lock))$|^#.*#$|\.php(~|\.sw[op]|\.bak|\.orig\.save))$ {
+  location ~* (\.(?:git.*|htaccess|engine|config|inc|ini|info|install|make|module|profile|test|pl|po|sh|.*sql|theme|twig|tpl(\.php)?|xtmpl|yml)(~|\.sw[op]|\.bak|\.orig|\.save)?$|^(\..*|Entries.*|Repository|Root|Tag|Template|composer\.(json|lock))$|^#.*#$|\.php(~|\.sw[op]|\.bak|\.orig\.save))$ {
     access_log off;
     return 404;
   }
@@ -551,6 +569,34 @@ location ^~ /<?php print $subdir; ?> {
     }
 
     ###
+    ### Sub-location to support css with short URIs.
+    ###
+    location ~* /<?php print $subdir; ?>/files/css/(.*)$ {
+      access_log off;
+      log_not_found off;
+      expires    30d;
+<?php if ($nginx_config_mode == 'extended'): ?>
+      set $nocache_details "Skip";
+<?php endif; ?>
+      rewrite  ^/<?php print $subdir; ?>/files/(.*)$  /<?php print $subdir; ?>/sites/$subdir_main_site_name/files/$1 last;
+      try_files  /<?php print $subdir; ?>/sites/$subdir_main_site_name/files/css/$1 $uri @drupal_<?php print $subdir_loc; ?>;
+    }
+
+    ###
+    ### Sub-location to support js with short URIs.
+    ###
+    location ~* /<?php print $subdir; ?>/files/js/(.*)$ {
+      access_log off;
+      log_not_found off;
+      expires    30d;
+<?php if ($nginx_config_mode == 'extended'): ?>
+      set $nocache_details "Skip";
+<?php endif; ?>
+      rewrite  ^/<?php print $subdir; ?>/files/(.*)$  /<?php print $subdir; ?>/sites/$subdir_main_site_name/files/$1 last;
+      try_files  /<?php print $subdir; ?>/sites/$subdir_main_site_name/files/js/$1 $uri @drupal_<?php print $subdir_loc; ?>;
+    }
+
+    ###
     ### Sub-location to support files/imagecache with short URIs.
     ###
     location ~* /<?php print $subdir; ?>/files/imagecache/(.*)$ {
@@ -567,7 +613,7 @@ location ^~ /<?php print $subdir; ?> {
       try_files  /<?php print $subdir; ?>/sites/$subdir_main_site_name/files/imagecache/$1 $uri @drupal_<?php print $subdir_loc; ?>;
     }
 
-    location ~* ^.+\.(?:pdf|jpe?g|gif|png|ico|bmp|svg|swf|docx?|xlsx?|pptx?|tiff?|txt|rtf|vcard|vcf|cgi|bat|pl|dll|class|otf|ttf|woff2?|eot|less|avi|mpe?g|mov|wmv|mp3|ogg|ogv|wav|midi|zip|tar|t?gz|rar|dmg|exe|apk|pxl|ipa|css|js)$ {
+    location ~* ^.+\.(?:pdf|jpe?g|gif|png|ico|webp|bmp|svg|swf|docx?|xlsx?|pptx?|tiff?|txt|rtf|vcard|vcf|cgi|bat|pl|dll|class|otf|ttf|woff2?|eot|less|avi|mpe?g|mov|wmv|mp3|ogg|ogv|wav|midi|zip|tar|t?gz|rar|dmg|exe|apk|pxl|ipa|css|js)$ {
       expires       30d;
       access_log    off;
       log_not_found off;
@@ -754,7 +800,7 @@ location ^~ /<?php print $subdir; ?> {
   ### Serve & no-log static files & images directly,
   ### without all standard drupal rewrites, php-fpm etc.
   ###
-  location ~* ^/<?php print $subdir; ?>/(.+\.(?:jpe?g|gif|png|ico|bmp|svg|swf|pdf|docx?|xlsx?|pptx?|tiff?|txt|rtf|vcard|vcf|cgi|bat|pl|dll|aspx?|class|otf|ttf|woff2?|eot|less))$ {
+  location ~* ^/<?php print $subdir; ?>/(.+\.(?:jpe?g|gif|png|ico|webp|bmp|svg|swf|pdf|docx?|xlsx?|pptx?|tiff?|txt|rtf|vcard|vcf|cgi|bat|pl|dll|aspx?|class|otf|ttf|woff2?|eot|less))$ {
     expires       30d;
     access_log    off;
     log_not_found off;
@@ -840,7 +886,7 @@ location ^~ /<?php print $subdir; ?> {
   ###
   ### Deny crawlers and never cache known AJAX requests.
   ###
-  location ~* ^/<?php print $subdir; ?>/(.*(?:ahah|ajax|batch|autocomplete|done|progress/|x-progress-id|js/.*).*)$ {
+  location ~* ^/<?php print $subdir; ?>/(.*(?:ahah|ajax|batch|autocomplete|progress/|x-progress-id|js/.*).*)$ {
     if ( $is_bot ) {
       return 403;
     }
@@ -1038,11 +1084,23 @@ location ^~ /<?php print $subdir; ?> {
 
 <?php if ($nginx_config_mode == 'extended'): ?>
   ###
-  ### Allow access to /authorize.php and /update.php only for logged in admin user.
+  ### Allow access to /update.php only for logged in admin user.
   ###
-  location ~* ^/<?php print $subdir; ?>/((?:core/)?(authorize|update))\.php$ {
+  location ~ ^/<?php print $subdir; ?>/(update)\.php$ {
     set $real_fastcgi_script_name $1.php;
     error_page 418 = @allowupdate_<?php print $subdir_loc; ?>;
+    if ( $cache_uid ) {
+      return 418;
+    }
+    return 404;
+  }
+
+  ###
+  ### Allow access to /authorize.php only for logged in admin user.
+  ###
+  location ~ ^/<?php print $subdir; ?>/(authorize)\.php$ {
+    set $real_fastcgi_script_name $1.php;
+    error_page 418 = @allowauthorize_<?php print $subdir_loc; ?>;
     if ( $cache_uid ) {
       return 418;
     }
@@ -1116,9 +1174,6 @@ location ^~ /<?php print $subdir; ?> {
     fastcgi_pass  127.0.0.1:9000;
 <?php else: ?>
     fastcgi_pass unix:<?php print $phpfpm_socket_path; ?>;
-<?php endif; ?>
-<?php if ($nginx_has_upload_progress): ?>
-    track_uploads uploads 60s; ### required for upload progress
 <?php endif; ?>
 <?php if ($nginx_config_mode == 'extended'): ?>
     ###
@@ -1228,11 +1283,11 @@ location @modern_<?php print $subdir_loc; ?> {
 
 <?php if ($nginx_config_mode == 'extended'): ?>
 ###
-### Internal location for /authorize.php and /update.php restricted access.
+### Internal location for /update.php restricted access.
 ###
 location @allowupdate_<?php print $subdir_loc; ?> {
 <?php if ($satellite_mode == 'boa'): ?>
-  limit_conn   limreq 88;
+  limit_conn   limreq 8;
 <?php endif; ?>
   include       fastcgi_params;
 
@@ -1256,8 +1311,50 @@ location @allowupdate_<?php print $subdir_loc; ?> {
 
   fastcgi_param SCRIPT_FILENAME <?php print "{$this->root}"; ?>/$real_fastcgi_script_name;
 
-  access_log   off;
-  try_files    /$real_fastcgi_script_name =404; ### check for existence of php file first
+  fastcgi_split_path_info ^(.+\.php)(/.+)$;
+  fastcgi_index update.php;
+  fastcgi_intercept_errors on;
+
+<?php if ($satellite_mode == 'boa'): ?>
+  fastcgi_pass unix:/var/run/$user_socket.fpm.socket;
+<?php elseif ($phpfpm_mode == 'port'): ?>
+  fastcgi_pass 127.0.0.1:9000;
+<?php else: ?>
+  fastcgi_pass unix:<?php print $phpfpm_socket_path; ?>;
+<?php endif; ?>
+}
+
+###
+### Internal location for /authorize.php restricted access.
+###
+location @allowauthorize_<?php print $subdir_loc; ?> {
+<?php if ($satellite_mode == 'boa'): ?>
+  limit_conn   limreq 8;
+<?php endif; ?>
+  include       fastcgi_params;
+
+  # Block https://httpoxy.org/ attacks.
+  fastcgi_param HTTP_PROXY "";
+
+  fastcgi_param db_type   <?php print urlencode($db_type); ?>;
+  fastcgi_param db_name   <?php print urlencode($db_name); ?>;
+  fastcgi_param db_user   <?php print implode('@', array_map('urlencode', explode('@', $db_user))); ?>;
+  fastcgi_param db_passwd <?php print urlencode($db_passwd); ?>;
+  fastcgi_param db_host   <?php print urlencode($db_host); ?>;
+  fastcgi_param db_port   <?php print urlencode($db_port); ?>;
+
+  fastcgi_param  HTTP_HOST           <?php print $this->uri; ?>;
+  fastcgi_param  RAW_HOST            $host;
+  fastcgi_param  SITE_SUBDIR         <?php print $subdir; ?>;
+  fastcgi_param  MAIN_SITE_NAME      <?php print $this->uri; ?>;
+
+  fastcgi_param  REDIRECT_STATUS     200;
+
+  fastcgi_param SCRIPT_FILENAME <?php print "{$this->root}"; ?>/$real_fastcgi_script_name;
+
+  fastcgi_split_path_info ^(.+\.php)(/.+)$;
+  fastcgi_index authorize.php;
+  fastcgi_intercept_errors on;
 
 <?php if ($satellite_mode == 'boa'): ?>
   fastcgi_pass unix:/var/run/$user_socket.fpm.socket;
