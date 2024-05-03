@@ -1,7 +1,10 @@
 <?php $this->root = provision_auto_fix_platform_root($this->root); ?>
 
 <?php
-$script_user = drush_get_option('script_user');
+$script_user = d('@server_master')->script_user;
+if (!$script_user) {
+  $script_user = drush_get_option('script_user');
+}
 if (!$script_user && $server->script_user) {
   $script_user = $server->script_user;
 }
@@ -11,7 +14,7 @@ if ($this->redirection) {
   $satellite_mode = d('@server_master')->satellite_mode;
   // Redirect all aliases to the main http url using separate vhosts blocks to avoid if{} in Nginx.
   foreach ($this->aliases as $alias_url) {
-    if (!preg_match("/\.(?:nodns)\./", $alias_url)) {
+    if (!preg_match("/\.(?:nodns|dev|devel)\./", $alias_url)) {
       print "\n";
       print "# alias redirection virtual host\n";
       print "server {\n";
@@ -34,6 +37,7 @@ if ($this->redirection) {
         print "  ### Allow access to letsencrypt.org ACME challenges directory.\n";
         print "  ###\n";
         print "  location ^~ /.well-known/acme-challenge {\n";
+        print "    allow all;\n";
         print "    alias {$aegir_root}/tools/le/.acme-challenges;\n";
         print "    try_files \$uri 404;\n";
         print "  }\n";
@@ -150,9 +154,16 @@ server {
     } else {
       print $this->uri;
     }
+    if (is_array($this->aliases)) {
+      foreach ($this->aliases as $alias_url) {
+        if (trim($alias_url) && preg_match("/\.(?:dev|devel)\./", $alias_url)) {
+          print " " . str_replace('/', '.', $alias_url);
+        }
+      }
+    }
     if (!$this->redirection && is_array($this->aliases)) {
       foreach ($this->aliases as $alias_url) {
-        if (trim($alias_url)) {
+        if (trim($alias_url) && !preg_match("/\.(?:dev|devel)\./", $alias_url)) {
           print " " . str_replace('/', '.', $alias_url);
         }
       }
