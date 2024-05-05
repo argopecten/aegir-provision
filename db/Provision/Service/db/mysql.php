@@ -91,7 +91,7 @@ class Provision_Service_db_mysql extends Provision_Service_db_pdo {
     }
 
     $statement = "GRANT ALL PRIVILEGES ON `%s`.* TO `%s`@`%s`";
-    
+
     // MySQL did this to us. https://github.com/drush-ops/drush/issues/5368#issuecomment-1405209770
     $statement .= "; GRANT RELOAD ON `%s`.* TO `%s`@`%s`";
     return $this->query($statement, $name, $username, $host);
@@ -411,7 +411,7 @@ port=%s
     // Ensure that the MySQL server supports large prefixes and utf8mb4.
     $dbname = uniqid(drush_get_option('aegir_db_prefix', 'site_'));
     $this->create_database($dbname);
-    $success = $this->query("CREATE TABLE `%s`.`drupal_utf8mb4_test` (id VARCHAR(255), PRIMARY KEY(id(255))) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC", $dbname);
+    $success = $this->query("CREATE TABLE `%s`.`drupal_utf8mb4_test` (id VARCHAR(255), PRIMARY KEY(id(255))) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ROW_FORMAT=DYNAMIC", $dbname);
     if (!$this->drop_database($dbname)) {
       drush_log(dt("Failed to drop database @dbname", array('@dbname' => $dbname)), 'warning');
     }
