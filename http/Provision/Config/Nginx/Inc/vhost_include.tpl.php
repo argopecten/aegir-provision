@@ -624,9 +624,9 @@ location ~* \.r\.(?:jpe?g|png|gif) {
 ### Adaptive Image Styles support.
 ### https://drupal.org/project/ais
 ###
-location ~* /(?:.+)/files/styles/adaptive/(?:.+)$ {
+location ~* /(?:.+)/files/(css|js|styles)/adaptive/(?:.+)$ {
   if ( $http_cookie ~* "ais=(?<ais_cookie>[a-z0-9-_]+)" ) {
-    rewrite ^/(.+)/files/styles/adaptive/(.+)$ /$1/files/styles/$ais_cookie/$2 last;
+    rewrite ^/(.+)/files/(css|js|styles)/adaptive/(.+)$ /$1/files/$2/$ais_cookie/$3 last;
   }
   access_log off;
   set $nocache_details "Skip";
@@ -669,7 +669,7 @@ location ~* /sites/.*/files/js/(.*)$ {
 ###
 ### The files/styles support.
 ###
-location ~* /sites/.*/files/styles/(.*)$ {
+location ~* /sites/.*/files/(css|js|styles)/(.*)$ {
   access_log off;
   log_not_found off;
   expires    30d;
@@ -679,13 +679,13 @@ location ~* /sites/.*/files/styles/(.*)$ {
 <?php if ($nginx_config_mode == 'extended'): ?>
   set $nocache_details "Skip";
 <?php endif; ?>
-  try_files  /sites/$main_site_name/files/styles/$1 $uri @drupal;
+  try_files  /sites/$main_site_name/files/$1/$2 $uri @drupal;
 }
 
 ###
 ### The s3/files/styles (s3fs) support.
 ###
-location ~* /s3/files/styles/(.*)$ {
+location ~* /s3/files/(css|js|styles)/(.*)$ {
   access_log off;
   log_not_found off;
   expires    30d;
@@ -695,7 +695,7 @@ location ~* /s3/files/styles/(.*)$ {
 <?php if ($nginx_config_mode == 'extended'): ?>
   set $nocache_details "Skip";
 <?php endif; ?>
-  try_files  /sites/$main_site_name/files/styles/$1 $uri @drupal;
+  try_files  /sites/$main_site_name/files/$1/$2 $uri @drupal;
 }
 
 ###
@@ -1000,7 +1000,7 @@ location ^~ /files/ {
   ###
   ### Sub-location to support files/styles with short URIs.
   ###
-  location ~* /files/styles/(.*)$ {
+  location ~* /files/(css|js|styles)/(.*)$ {
     access_log off;
     log_not_found off;
     expires    30d;
@@ -1008,7 +1008,7 @@ location ^~ /files/ {
     set $nocache_details "Skip";
 <?php endif; ?>
     rewrite  ^/files/(.*)$  /sites/$main_site_name/files/$1 last;
-    try_files  /sites/$main_site_name/files/styles/$1 $uri @drupal;
+    try_files  /sites/$main_site_name/files/$1/$2 $uri @drupal;
   }
 
   ###
