@@ -109,10 +109,8 @@ if ($this->redirection || !$this->redirection) {
 
 server {
   include       fastcgi_params;
-
   # Block https://httpoxy.org/ attacks.
   fastcgi_param HTTP_PROXY "";
-
   fastcgi_param MAIN_SITE_NAME <?php print $this->uri; ?>;
   set $main_site_name "<?php print $this->uri; ?>";
   fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
@@ -132,7 +130,7 @@ server {
 ?>
   fastcgi_param db_type   <?php print urlencode($db_type); ?>;
   fastcgi_param db_name   <?php print urlencode($db_name); ?>;
-  fastcgi_param db_user   <?php print urlencode($db_user); ?>;
+  fastcgi_param db_user   <?php print implode('@', array_map('urlencode', explode('@', $db_user))); ?>;
   fastcgi_param db_passwd <?php print urlencode($db_passwd); ?>;
   fastcgi_param db_host   <?php print urlencode($db_host); ?>;
 <?php
@@ -145,6 +143,7 @@ server {
 ?>
   fastcgi_param db_port   <?php print urlencode($db_port); ?>;
   listen        *:<?php print $http_port; ?>;
+  #listen        [::]:<?php print $http_port; ?>;
   server_name   <?php
     // this is the main vhost, so we need to put the redirection
     // target as the hostname (if it exists) and not the original URL

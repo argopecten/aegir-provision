@@ -37,10 +37,21 @@ else {
 }
 
 if ($satellite_mode == 'boa') {
-  $ssl_listen_ip = "*";
+  $ssl_listen_ipv4 = "*";
+  $ssl_listen_ipv6 = "[::]";
+  $main_name = $this->uri;
+  if ($this->redirection) {
+    $main_name = $this->redirection;
+  }
+  $legacy_tls_ctrl = $aegir_root . "/static/control/tls-legacy-enable-" . $main_name . ".info";
+  $legacy_tls_enable = FALSE;
+  if (provision_file()->exists($legacy_tls_ctrl)->status()) {
+    $legacy_tls_enable = TRUE;
+  }
 }
 else {
-  $ssl_listen_ip = $ip_address;
+  $ssl_listen_ipv4 = $ip_address;
+  $ssl_listen_ipv6 = "[::]";
 }
 ?>
 
@@ -48,7 +59,8 @@ else {
 <?php foreach ($this->aliases as $alias_url): ?>
 <?php if (!preg_match("/\.(?:nodns|dev|devel)\./", $alias_url)): ?>
 server {
-  listen       <?php print "{$ssl_listen_ip}:{$http_ssl_port} {$ssl_args}"; ?>;
+  listen       <?php print "{$ssl_listen_ipv4}:{$http_ssl_port} {$ssl_args}"; ?>;
+  #listen       <?php print "{$ssl_listen_ipv6}:{$http_ssl_port} {$ssl_args}"; ?>;
 <?php
   // if we use redirections, we need to change the redirection
   // target to be the original site URL ($this->uri instead of
@@ -62,13 +74,15 @@ server {
     print "  server_name  {$alias_url};\n";
   }
 ?>
-  ssl                        on;
 <?php if ($satellite_mode == 'boa'): ?>
   ssl_stapling               on;
   ssl_stapling_verify        on;
-  resolver 8.8.8.8 8.8.4.4 valid=300s;
+  resolver 1.1.1.1 1.0.0.1 valid=300s;
   resolver_timeout           5s;
   ssl_dhparam                /etc/ssl/private/nginx-wild-ssl.dhp;
+<?php if ($legacy_tls_enable): ?>
+  ssl_protocols              TLSv1.1 TLSv1.2 TLSv1.3;
+<?php endif; ?>
 <?php endif; ?>
   ssl_certificate_key        <?php print $ssl_cert_key; ?>;
 <?php if (!empty($ssl_chain_cert)) : ?>
@@ -90,15 +104,14 @@ server {
 <?php endif; ?>
   return 301 $scheme://<?php print $this->redirection; ?>$request_uri;
 }
+<?php endif; ?>
 <?php endforeach; ?>
 <?php endif; ?>
 
 server {
   include       fastcgi_params;
-
   # Block https://httpoxy.org/ attacks.
   fastcgi_param HTTP_PROXY "";
-
   fastcgi_param MAIN_SITE_NAME <?php print $this->uri; ?>;
   set $main_site_name "<?php print $this->uri; ?>";
   fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
@@ -119,7 +132,7 @@ server {
 ?>
   fastcgi_param db_type   <?php print urlencode($db_type); ?>;
   fastcgi_param db_name   <?php print urlencode($db_name); ?>;
-  fastcgi_param db_user   <?php print urlencode($db_user); ?>;
+  fastcgi_param db_user   <?php print implode('@', array_map('urlencode', explode('@', $db_user))); ?>;
   fastcgi_param db_passwd <?php print urlencode($db_passwd); ?>;
   fastcgi_param db_host   <?php print urlencode($db_host); ?>;
 <?php
@@ -127,11 +140,18 @@ server {
   // use this simple fallback to guarantee that empty db_port does not
   // break Nginx reload which results with downtime for the affected vhosts.
   if (!$db_port) {
-    $db_port = $this->server->db_port ? $this->server->db_port : '3306';
+    $ctrlf = '/data/conf/' . $script_user . '_use_proxysql.txt';
+    if (provision_file()->exists($ctrlf)->status()) {
+      $db_port = '6033';
+    }
+    else {
+      $db_port = $this->server->db_port ? $this->server->db_port : '3306';
+    }
   }
 ?>
   fastcgi_param db_port   <?php print urlencode($db_port); ?>;
-  listen        <?php print "{$ssl_listen_ip}:{$http_ssl_port} {$ssl_args}"; ?>;
+  listen        <?php print "{$ssl_listen_ipv4}:{$http_ssl_port} {$ssl_args}"; ?>;
+  #listen        <?php print "{$ssl_listen_ipv6}:{$http_ssl_port} {$ssl_args}"; ?>;
   server_name   <?php
     // this is the main vhost, so we need to put the redirection
     // target as the hostname (if it exists) and not the original URL
@@ -156,13 +176,15 @@ server {
       }
     } ?>;
   root          <?php print "{$this->root}"; ?>;
-  ssl                        on;
 <?php if ($satellite_mode == 'boa'): ?>
   ssl_stapling               on;
   ssl_stapling_verify        on;
-  resolver 8.8.8.8 8.8.4.4 valid=300s;
+  resolver 1.1.1.1 1.0.0.1 valid=300s;
   resolver_timeout           5s;
   ssl_dhparam                /etc/ssl/private/nginx-wild-ssl.dhp;
+<?php if ($legacy_tls_enable): ?>
+  ssl_protocols              TLSv1.1 TLSv1.2 TLSv1.3;
+<?php endif; ?>
 <?php endif; ?>
   ssl_certificate_key        <?php print $ssl_cert_key; ?>;
 <?php if (!empty($ssl_chain_cert)) : ?>
