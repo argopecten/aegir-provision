@@ -15,7 +15,7 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
   }
 
   function cloaked_db_creds() {
-    return TRUE;
+    return FALSE;
   }
 
   function init_server() {
@@ -42,7 +42,7 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
   function save_server() {
 
     // Set correct provision_db_cloaking value on server save.
-    $this->server->provision_db_cloaking = TRUE;
+    $this->server->provision_db_cloaking = FALSE;
 
     // Find nginx executable.
     if (provision_file()->exists('/usr/local/sbin/nginx')->status()) {
@@ -69,11 +69,11 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
     $nginx_config_mode_file = "/etc/nginx/basic_nginx.conf";
     if (provision_file()->exists($nginx_config_mode_file)->status()) {
       $this->server->nginx_config_mode = 'basic';
-      drush_log(dt('Basic Nginx Config Active -SAVE- YES control file found @path.', array('@path' => $nginx_config_mode_file)));
+      drush_log(dt('Basic Nginx Config Active -SAVE- YES control file found @path.', array('@path' => $nginx_config_mode_file)), 'info');
     }
     else {
       $this->server->nginx_config_mode = 'extended';
-      drush_log(dt('Extended Nginx Config Active -SAVE- NO control file found @path.', array('@path' => $nginx_config_mode_file)));
+      drush_log(dt('Extended Nginx Config Active -SAVE- NO control file found @path.', array('@path' => $nginx_config_mode_file)), 'info');
     }
 
     // Check if there is php-fpm listening on unix socket, otherwise use port 9000 to connect
@@ -82,11 +82,11 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
     // Check if there is BOA specific global.inc file to enable extra Nginx locations
     if (provision_file()->exists('/data/conf/global.inc')->status()) {
       $this->server->satellite_mode = 'boa';
-      drush_log(dt('BOA mode detected -SAVE- YES file found @path.', array('@path' => '/data/conf/global.inc')));
+      drush_log(dt('BOA mode detected -SAVE- YES file found @path.', array('@path' => '/data/conf/global.inc')), 'info');
     }
     else {
       $this->server->satellite_mode = 'vanilla';
-      drush_log(dt('Vanilla mode detected -SAVE- NO file found @path.', array('@path' => '/data/conf/global.inc')));
+      drush_log(dt('Vanilla mode detected -SAVE- NO file found @path.', array('@path' => '/data/conf/global.inc')), 'info');
     }
 
     // Set correct subdirs_support value on server save
@@ -98,7 +98,7 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
   function verify_server_cmd() {
 
     // Set correct provision_db_cloaking value on server verify.
-    $this->server->provision_db_cloaking = TRUE;
+    $this->server->provision_db_cloaking = FALSE;
 
     // Find nginx executable.
     if (provision_file()->exists('/usr/local/sbin/nginx')->status()) {
@@ -124,11 +124,11 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
     $nginx_config_mode_file = "/etc/nginx/basic_nginx.conf";
     if (provision_file()->exists($nginx_config_mode_file)->status()) {
       $this->server->nginx_config_mode = 'basic';
-      drush_log(dt('Basic Nginx Config Active -VERIFY- YES control file found @path.', array('@path' => $nginx_config_mode_file)));
+      drush_log(dt('Basic Nginx Config Active -VERIFY- YES control file found @path.', array('@path' => $nginx_config_mode_file)), 'info');
     }
     else {
       $this->server->nginx_config_mode = 'extended';
-      drush_log(dt('Extended Nginx Config Active -VERIFY- NO control file found @path.', array('@path' => $nginx_config_mode_file)));
+      drush_log(dt('Extended Nginx Config Active -VERIFY- NO control file found @path.', array('@path' => $nginx_config_mode_file)), 'info');
     }
 
     // Check if there is php-fpm listening on unix socket, otherwise use port 9000 to connect
@@ -137,11 +137,11 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
     // Check if there is BOA specific global.inc file to enable extra Nginx locations
     if (provision_file()->exists('/data/conf/global.inc')->status()) {
       $this->server->satellite_mode = 'boa';
-      drush_log(dt('BOA mode detected -VERIFY- YES file found @path.', array('@path' => '/data/conf/global.inc')));
+      drush_log(dt('BOA mode detected -VERIFY- YES file found @path.', array('@path' => '/data/conf/global.inc')), 'info');
     }
     else {
       $this->server->satellite_mode = 'vanilla';
-      drush_log(dt('Vanilla mode detected -VERIFY- NO file found @path.', array('@path' => '/data/conf/global.inc')));
+      drush_log(dt('Vanilla mode detected -VERIFY- NO file found @path.', array('@path' => '/data/conf/global.inc')), 'info');
     }
 
     // Set correct subdirs_support value on server verify
@@ -186,7 +186,7 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
         '@task' => strtoupper($server_task),
         '@yes_or_no' => ($mode == 'socket') ? 'YES' : 'NO',
         '@path' => ($socket_path ? $socket_path : self::SOCKET_PATH_PHP5 . ' or ' . static::getPhp7FpmSocketPath()),
-      )));
+      )), 'info');
     }
 
     // Return the discovered mode.

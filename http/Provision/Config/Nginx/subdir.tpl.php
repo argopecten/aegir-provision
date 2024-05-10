@@ -346,7 +346,7 @@ location ^~ /<?php print $subdir; ?> {
 
     fastcgi_param db_type   <?php print urlencode($db_type); ?>;
     fastcgi_param db_name   <?php print urlencode($db_name); ?>;
-    fastcgi_param db_user   <?php print urlencode($db_user); ?>;
+    fastcgi_param db_user   <?php print implode('@', array_map('urlencode', explode('@', $db_user))); ?>;
     fastcgi_param db_passwd <?php print urlencode($db_passwd); ?>;
     fastcgi_param db_host   <?php print urlencode($db_host); ?>;
     fastcgi_param db_port   <?php print urlencode($db_port); ?>;
@@ -429,6 +429,14 @@ location ^~ /<?php print $subdir; ?> {
   location ^~ /<?php print $subdir; ?>/admin/config/development/performance/redis {
     access_log off;
     return 301 $scheme://$host/<?php print $subdir; ?>/admin/config/development/performance;
+  }
+
+  ###
+  ### Deny cache details display.
+  ###
+  location ^~ /<?php print $subdir; ?>/admin/reports/redis {
+    access_log off;
+    return 301 $scheme://$host/<?php print $subdir; ?>/admin/reports;
   }
 <?php endif; ?>
 
@@ -853,7 +861,7 @@ location ^~ /<?php print $subdir; ?> {
 
     fastcgi_param db_type   <?php print urlencode($db_type); ?>;
     fastcgi_param db_name   <?php print urlencode($db_name); ?>;
-    fastcgi_param db_user   <?php print urlencode($db_user); ?>;
+    fastcgi_param db_user   <?php print implode('@', array_map('urlencode', explode('@', $db_user))); ?>;
     fastcgi_param db_passwd <?php print urlencode($db_passwd); ?>;
     fastcgi_param db_host   <?php print urlencode($db_host); ?>;
     fastcgi_param db_port   <?php print urlencode($db_port); ?>;
@@ -1001,13 +1009,6 @@ location ^~ /<?php print $subdir; ?> {
     return 405;
   }
   error_page 405 = @drupal_<?php print $subdir_loc; ?>;
-
-  ###
-  ### Rewrite legacy requests with /index.php to extension-free URL.
-  ###
-  if ( $args ~* "^q=(?<query_value>.*)" ) {
-    rewrite ^/<?php print $subdir; ?>/index.php$ $scheme://$host/<?php print $subdir; ?>/?q=$query_value? permanent;
-  }
 <?php endif; ?>
 
   ###
@@ -1055,7 +1056,7 @@ location ^~ /<?php print $subdir; ?> {
 
     fastcgi_param db_type   <?php print urlencode($db_type); ?>;
     fastcgi_param db_name   <?php print urlencode($db_name); ?>;
-    fastcgi_param db_user   <?php print urlencode($db_user); ?>;
+    fastcgi_param db_user   <?php print implode('@', array_map('urlencode', explode('@', $db_user))); ?>;
     fastcgi_param db_passwd <?php print urlencode($db_passwd); ?>;
     fastcgi_param db_host   <?php print urlencode($db_host); ?>;
     fastcgi_param db_port   <?php print urlencode($db_port); ?>;
@@ -1146,7 +1147,7 @@ location ^~ /<?php print $subdir; ?> {
 
     fastcgi_param db_type   <?php print urlencode($db_type); ?>;
     fastcgi_param db_name   <?php print urlencode($db_name); ?>;
-    fastcgi_param db_user   <?php print urlencode($db_user); ?>;
+    fastcgi_param db_user   <?php print implode('@', array_map('urlencode', explode('@', $db_user))); ?>;
     fastcgi_param db_passwd <?php print urlencode($db_passwd); ?>;
     fastcgi_param db_host   <?php print urlencode($db_host); ?>;
     fastcgi_param db_port   <?php print urlencode($db_port); ?>;
@@ -1314,7 +1315,7 @@ location @allowupdate_<?php print $subdir_loc; ?> {
 
   fastcgi_param db_type   <?php print urlencode($db_type); ?>;
   fastcgi_param db_name   <?php print urlencode($db_name); ?>;
-  fastcgi_param db_user   <?php print urlencode($db_user); ?>;
+  fastcgi_param db_user   <?php print implode('@', array_map('urlencode', explode('@', $db_user))); ?>;
   fastcgi_param db_passwd <?php print urlencode($db_passwd); ?>;
   fastcgi_param db_host   <?php print urlencode($db_host); ?>;
   fastcgi_param db_port   <?php print urlencode($db_port); ?>;
