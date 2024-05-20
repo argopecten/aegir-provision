@@ -181,7 +181,7 @@ function provision_unlock_some_vnd() {
 function provision_lock_some_vnd() {
 
   if (provision_file()->exists(d()->root)->status() &&
-     !preg_match("/\/var\/aegir\//gi", d()->root)) {
+     !preg_match_all("/\/var\/aegir\//i", d()->root)) {
 
     drush_log(dt('Drupal root reported in provision_lock_some_vnd: !vendor', array('!vendor' => d()->root)), 'message');
 
