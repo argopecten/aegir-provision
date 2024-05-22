@@ -91,7 +91,7 @@ class Provision_Service_db_mysql extends Provision_Service_db_pdo {
     }
 
     $statement = "GRANT ALL PRIVILEGES ON `%s`.* TO `%s`@`%s`";
-    
+
     // MySQL did this to us. https://github.com/drush-ops/drush/issues/5368#issuecomment-1405209770
     $statement .= "; GRANT RELOAD ON `%s`.* TO `%s`@`%s`";
     return $this->query($statement, $name, $username, $host);
@@ -146,9 +146,12 @@ class Provision_Service_db_mysql extends Provision_Service_db_pdo {
 
 
   function import_dump($dump_file, $creds) {
+    if (empty($creds)) {
+      $creds = $this->generate_site_credentials();
+    }
     extract($creds);
 
-    $cmd = sprintf("mysql --defaults-file=/dev/fd/3 %s", escapeshellcmd($db_name));
+    $cmd = sprintf("mysql --defaults-file=/dev/fd/3 --force %s", escapeshellcmd($db_name));
 
     $success = $this->safe_shell_exec($cmd, $db_host, $db_user, $db_passwd, $dump_file);
 
@@ -303,7 +306,7 @@ port=%s
     } // else
 
     // Mixed copy-paste of drush_shell_exec and provision_shell_exec.
-    $cmd = sprintf("mysqldump --defaults-file=/dev/fd/3 %s --single-transaction --quick --no-autocommit %s", $gtid_option, escapeshellcmd(drush_get_option('db_name')));
+    $cmd = sprintf("mysqldump --defaults-file=/dev/fd/3 %s --no-tablespaces --no-autocommit --skip-add-locks --single-transaction --quick --hex-blob %s", $gtid_option, escapeshellcmd(drush_get_option('db_name')));
 
     // Fail if db file already exists.
     $dump_file = fopen(d()->site_path . '/database.sql', 'x');
@@ -411,7 +414,7 @@ port=%s
     // Ensure that the MySQL server supports large prefixes and utf8mb4.
     $dbname = uniqid(drush_get_option('aegir_db_prefix', 'site_'));
     $this->create_database($dbname);
-    $success = $this->query("CREATE TABLE `%s`.`drupal_utf8mb4_test` (id VARCHAR(255), PRIMARY KEY(id(255))) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci ROW_FORMAT=DYNAMIC", $dbname);
+    $success = $this->query("CREATE TABLE `%s`.`drupal_utf8mb4_test` (id VARCHAR(255), PRIMARY KEY(id(255))) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC", $dbname);
     if (!$this->drop_database($dbname)) {
       drush_log(dt("Failed to drop database @dbname", array('@dbname' => $dbname)), 'warning');
     }

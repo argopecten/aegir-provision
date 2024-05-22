@@ -92,6 +92,7 @@ function drush_provision_drupal_pre_provision_deploy($backup_file) {
     provision_save_site_data();
 
     // Load the newly created information, including re-loading the new db creds.
+    provision_lock_some_vnd();
     drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_SITE);
     _provision_drupal_create_settings_file();
     provision_drupal_push_site($override_slave_authority = TRUE);
@@ -111,7 +112,7 @@ function drush_provision_drupal_pre_provision_deploy($backup_file) {
       foreach ($site_packages['modules'] as $name => $module) {
         if ($module['status'] == 1) {
           if (isset($module['platform']) && $module['platform'] != '-1') {
-            drush_log(dt("The !name module is installed in the site's modules directory. Skipping schema version check.", array('!name' => $name)));
+            drush_log(dt("The !name module is installed in the site's modules directory. Skipping schema version check.", array('!name' => $name)), 'info');
           }
           elseif (!array_key_exists($name, $merged_modules)) {
             drush_log(dt("Could not find a version of the !name module", array('!name' => $name)), 'warning');
@@ -188,20 +189,26 @@ function drush_provision_drupal_post_provision_deploy() {
       drush_log(dt('Registry rebuilt without --no-cache-clear in drush_provision_drupal_post_provision_deploy'));
     }
   }
-  // We should be able to fully load Drupal now.
-  if (drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL)) {
-    drush_include_engine('drupal', 'deploy');
-    drush_set_option('packages', _scrub_object(provision_drupal_system_map()), 'site');
-    _provision_drupal_rebuild_caches();
+  if (drush_drupal_major_version() < 12) {
+    // We should be able to fully load Drupal now.
+    if (drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL)) {
+      drush_include_engine('drupal', 'deploy');
+      drush_set_option('packages', _scrub_object(provision_drupal_system_map()), 'site');
+      _provision_drupal_rebuild_caches();
 
-    // Rebuild the node access tables only if necessary.
-    if (!function_exists("node_access_needs_rebuild") || node_access_needs_rebuild()) {
-      node_access_rebuild();
-      drush_log(dt('Rebuilt node access table'));
+      // Rebuild the node access tables only if necessary.
+      if (!function_exists("node_access_needs_rebuild") || node_access_needs_rebuild()) {
+        node_access_rebuild();
+        drush_log(dt('Rebuilt node access table'));
+      }
+    }
+    else {
+      drush_log("could not bootstrap drupal after updatedb");
     }
   }
   else {
-    drush_log("could not bootstrap drupal after updatedb");
+    drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION);
+    drush_log("Skipping FULL bootstrap for drupal 12+ in drush_provision_drupal_post_provision_deploy");
   }
 
   // Remove the restore directory.
