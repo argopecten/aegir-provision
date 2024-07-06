@@ -10,7 +10,7 @@ function drush_provision_drupal_pre_provision_delete($backup_file = NULL) {
       drush_set_error('PROVISION_DELETE_BACKUP_NAME_RELATIVE', dt('The passed backup name is a relative path, storing that in the site directory which is going to be deleted is probably not intended. Try an absolute name, or no name to let one be generated.'));
     }
     else {
-      drush_log(dt('Invoking drush provision-backup...'));
+      drush_log(dt('Invoking drush provision-backup in drush_provision_drupal_pre_provision_delete'));
       drush_invoke("provision-backup", $backup_file);
       drush_unset_option('force', 'process');
     }
@@ -26,13 +26,15 @@ function drush_provision_drupal_provision_delete() {
   if (d()->type === 'site') {
 
     // Add platform root auto-discovery to avoid confusing
-    // Composer based D8 codebase root with Drupal real root.
+    // Composer based D8+ codebase root with Drupal real root.
     d()->root = provision_auto_fix_platform_root(d()->root);
 
     // Re-set the ROOT PATH for Drush.
     // In cases where we just build the platform Drush would have cleared this value.
     // See Drush commit 3b74d40b1228f022464b92243c16127eb613c2df
     drush_set_context('DRUSH_SELECTED_DRUPAL_ROOT', d()->root);
+
+    provision_lock_some_vnd();
 
     drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_ROOT);
 
@@ -57,8 +59,10 @@ function drush_provision_drupal_provision_delete() {
   elseif (d()->type === 'platform') {
 
     // Add platform root auto-discovery to avoid confusing
-    // Composer based D8 codebase root with Drupal real root.
+    // Composer based D8+ codebase root with Drupal real root.
     d()->root = provision_auto_fix_platform_root(d()->root);
+
+    provision_unlock_some_vnd();
 
     // Make sure if we are within parent codebase directory
     $test_parent = dirname(d()->root);

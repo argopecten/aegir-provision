@@ -69,8 +69,22 @@ class Provision_Service_db extends Provision_Service {
   function suggest_db_name() {
     $uri = $this->context->uri;
 
+    if (!$uri) {
+      drush_log(dt("URI @uri is EMPTY...", array('@uri' => $uri)), 'info');
+    }
+    else {
+      drush_log(dt("URI is OK @uri", array('@uri' => $uri)), 'info');
+    }
+
     $suggest_base = substr(str_replace(array('.', '-'), '' , preg_replace('/^www\./', '', $uri)), 0, 16);
     drush_command_invoke_all_ref('provision_suggest_db_name_alter', $suggest_base);
+
+    if (!$suggest_base) {
+      drush_log(dt("SUGGEST_BASE @suggest_base is EMPTY...", array('@suggest_base' => $suggest_base)), 'info');
+    }
+    else {
+      drush_log(dt("SUGGEST_BASE is OK @suggest_base", array('@suggest_base' => $suggest_base)), 'info');
+    }
 
     if (!$this->database_exists($suggest_base)) {
       return $suggest_base;
@@ -91,7 +105,7 @@ class Provision_Service_db extends Provision_Service {
    * Generate a new mysql database and user account for the specified credentials
    */
   function create_site_database($creds = array()) {
-    if (!sizeof($creds)) {
+    if (empty($creds)) {
       $creds = $this->generate_site_credentials();
     }
     extract($creds);
@@ -103,7 +117,7 @@ class Provision_Service_db extends Provision_Service {
     }
 
     foreach ($this->grant_host_list() as $db_grant_host) {
-      drush_log(dt("Granting privileges to %user@%client on %database", array('%user' => $db_user, '%client' => $db_grant_host, '%database' => $db_name)));
+      drush_log(dt("Granting privileges to %user@%client on %database", array('%user' => $db_user, '%client' => $db_grant_host, '%database' => $db_name)), 'info');
       if (!$this->grant($db_name, $db_user, $db_passwd, $db_grant_host)) {
         drush_set_error('PROVISION_CREATE_DB_FAILED', dt("Could not create database user @user", array('@user' => $db_user)));
       }
@@ -126,19 +140,19 @@ class Provision_Service_db extends Provision_Service {
    * Remove the database and user account for the supplied credentials
    */
   function destroy_site_database($creds = array()) {
-    if (!sizeof($creds)) {
+    if (empty($creds)) {
       $creds = $this->fetch_site_credentials();
     }
     extract($creds);
 
     // Do not attempt to continue if there is no db name.
     if (empty($db_name)) {
-      drush_log(dt("Unable to destoy the database because the database name is unknown.", array('@dbname' => $db_name)), 'warning');
+      drush_log(dt("Unable to destroy the database because the database name is unknown.", array('@dbname' => $db_name)), 'warning');
       return;
     }
 
     if ( $this->database_exists($db_name) ) {
-      drush_log(dt("Dropping database @dbname", array('@dbname' => $db_name)));
+      drush_log(dt("Dropping database @dbname", array('@dbname' => $db_name)), 'info');
       if (!$this->drop_database($db_name)) {
         drush_log(dt("Failed to drop database @dbname", array('@dbname' => $db_name)), 'warning');
       }
@@ -150,7 +164,7 @@ class Provision_Service_db extends Provision_Service {
     }
 
     foreach ($this->grant_host_list() as $db_grant_host) {
-      drush_log(dt("Revoking privileges of %user@%client from %database", array('%user' => $db_user, '%client' => $db_grant_host, '%database' => $db_name)));
+      drush_log(dt("Revoking privileges of %user@%client from %database", array('%user' => $db_user, '%client' => $db_grant_host, '%database' => $db_name)), 'info');
       if (!$this->revoke($db_name, $db_user, $db_grant_host)) {
         drush_log(dt("Failed to revoke user privileges"), 'warning');
       }
@@ -163,7 +177,7 @@ class Provision_Service_db extends Provision_Service {
       $dump_file = d()->site_path . '/database.sql';
     }
 
-    if (!sizeof($creds)) {
+    if (empty($creds)) {
       $creds = $this->fetch_site_credentials();
     }
 
