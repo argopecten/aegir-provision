@@ -286,20 +286,20 @@ function provision_lock_some_vnd() {
       $webRoot = d()->root;
       $command = sprintf('patch -d ' . $webRoot . ' -p1 < ' . $patchTpl);
 
-      if (provision_file()->exists($patchTpl)->status()) {
+      if (provision_file()->exists($patchTpl)->status() && $is_patched == 'NO') {
         if (!provision_file()->exists($patchFile)->status()) {
-          $success = drush_shell_exec($command);
-          $result = drush_shell_exec_output();
-          foreach ($result as $index => $line) {
-            if (!$success) { // Log the entire error as a warning.
-              $line_status = 'warning';
-            }
-            else { // Only log the last line as success.
-              $line_status = $index+1 == count($result) ? 'success' : 'notice';
-            }
-            drush_log($line, $line_status);
-          }
           provision_file()->copy($patchTpl, $patchFile);
+        }
+        $success = drush_shell_exec($command);
+        $result = drush_shell_exec_output();
+        foreach ($result as $index => $line) {
+          if (!$success) { // Log the entire error as a warning.
+            $line_status = 'warning';
+          }
+          else { // Only log the last line as success.
+            $line_status = $index+1 == count($result) ? 'success' : 'notice';
+          }
+          drush_log($line, $line_status);
         }
       }
     }
