@@ -160,7 +160,6 @@ function install_main() {
   // Composer based D10 codebase root with Drupal real root.
   d()->root = provision_auto_fix_platform_root(d()->root);
 
-/*
   $account = \Drupal\user\Entity\User::load(1);
 
   // If a redirect is defined, the symlink to the alias needs to exist before
