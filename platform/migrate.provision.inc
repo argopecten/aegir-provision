@@ -10,7 +10,11 @@
  * Implementation of drush_hook_COMMAND_validate().
  */
 function drush_provision_drupal_provision_migrate_validate($platform = NULL) {
-  provision_lock_some_vnd();
+  $drush_lock_ctrl = d()->root . '/local_drush_locked.pid';
+  if (!provision_file()->exists($drush_lock_ctrl)->status()) {
+    // local drush is unlocked, function might break
+    drush_log(dt('Local Drush is unlocked. Lock local Drush before proceeding', 'error'));
+  }
   drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_SITE);
 }
 

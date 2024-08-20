@@ -92,7 +92,11 @@ function drush_provision_drupal_pre_provision_deploy($backup_file) {
     provision_save_site_data();
 
     // Load the newly created information, including re-loading the new db creds.
-    provision_lock_some_vnd();
+    $drush_lock_ctrl = d()->root . '/local_drush_locked.pid';
+    if (!provision_file()->exists($drush_lock_ctrl)->status()) {
+      // local drush is unlocked, function might break
+      drush_log(dt('Local Drush is unlocked. Lock local Drush before proceeding', 'error'));
+    }
     drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_SITE);
     _provision_drupal_create_settings_file();
     provision_drupal_push_site($override_slave_authority = TRUE);

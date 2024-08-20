@@ -13,7 +13,11 @@
  * Make sure we have a valid site being cloned, and that the file being cloned from exists
  */
 function drush_provision_drupal_provision_clone_validate($new_name = null, $platform = null) {
-  provision_lock_some_vnd();
+  $drush_lock_ctrl = d()->root . '/local_drush_locked.pid';
+  if (!provision_file()->exists($drush_lock_ctrl)->status()) {
+    // local drush is unlocked, function might break
+    drush_log(dt('Local Drush is unlocked. Lock local Drush before proceeding', 'error'));
+  }
   drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_SITE);
 }
 
