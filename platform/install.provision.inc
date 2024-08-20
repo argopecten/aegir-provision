@@ -64,6 +64,13 @@ function drush_provision_drupal_provision_install_validate() {
  * Set up the directories and settings.php file that we need.
  */
 function drush_provision_drupal_pre_provision_install() {
+
+  $drush_lock_ctrl = d()->root . '/local_drush_locked.pid';
+  if (!provision_file()->exists($drush_lock_ctrl)->status()) {
+    // local drush is unlocked, install might break
+    drush_log(dt('Local Drush is unlocked. Lock local Drush before proceeding', 'error'));
+  }
+
   // This is the actual drupal provisioning requirements.
   _provision_drupal_create_directories();
 }
@@ -89,7 +96,6 @@ function drush_provision_drupal_pre_provision_install_rollback() {
  */
 function drush_provision_drupal_provision_install() {
  // Requires at least the database settings to complete.
-  provision_lock_some_vnd();
   provision_prepare_environment();
   _provision_drupal_create_settings_file();
   provision_drupal_push_site($override_slave_authority = TRUE);

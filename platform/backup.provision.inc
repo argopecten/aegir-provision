@@ -17,7 +17,11 @@ const PROVISION_BACKUP_EXCLUDED_DIRECTORIES = array(
  */
 function drush_provision_drupal_provision_backup_validate($backup_file = NULL) {
 
-  provision_lock_some_vnd();
+  $drush_lock_ctrl = d()->root . '/local_drush_locked.pid';
+  if (!provision_file()->exists($drush_lock_ctrl)->status()) {
+    // local drush is unlocked, function might break
+    drush_log(dt('Local Drush is unlocked. Lock local Drush before proceeding', 'error'));
+  }
 
   if (!@drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION)) {
     if (drush_get_option('force', false)) {

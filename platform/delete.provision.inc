@@ -34,7 +34,11 @@ function drush_provision_drupal_provision_delete() {
     // See Drush commit 3b74d40b1228f022464b92243c16127eb613c2df
     drush_set_context('DRUSH_SELECTED_DRUPAL_ROOT', d()->root);
 
-    provision_lock_some_vnd();
+    $drush_lock_ctrl = d()->root . '/local_drush_locked.pid';
+    if (!provision_file()->exists($drush_lock_ctrl)->status()) {
+      // local drush is unlocked, install might break
+      drush_log(dt('Local Drush is unlocked. Lock local Drush before proceeding', 'error'));
+    }
 
     drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_ROOT);
 
