@@ -25,7 +25,7 @@ class Provision_Context_server extends Provision_Context {
       'aegir_root' => 'server: Aegir root; default ' . getenv('HOME'),
       'master_url' => 'server: Hostmaster URL',
     );
-    foreach (drush_command_invoke_all('provision_services') as $service => $default) {
+    foreach (provision_command_invoke_all('provision_services') as $service => $default) {
       // TODO: replace this file scanning nastiness, with a hook!
       $reflect = new reflectionClass('Provision_Service_' . $service);
       $base_dir = dirname($reflect->getFilename());
@@ -74,7 +74,7 @@ class Provision_Context_server extends Provision_Context {
    * Iterate through the available service types and spawn a handler for each type.
    */
   function load_services() {
-    $service_list = drush_command_invoke_all('provision_services');
+    $service_list = provision_command_invoke_all('provision_services');
     foreach ($service_list as $service => $default) {
       $this->spawn_service($service, $default);
     }

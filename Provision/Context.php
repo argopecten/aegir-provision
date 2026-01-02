@@ -198,7 +198,7 @@ class Provision_Context {
     $this->is_oid('server');
 
     // Set up subscriptions for the available services.
-    $service_list = drush_command_invoke_all('provision_services');
+    $service_list = provision_command_invoke_all('provision_services');
     foreach ($service_list as $service => $default) {
       $class = "Provision_Service_{$service}";
       $func = "subscribe_{$this->type}";

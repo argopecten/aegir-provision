@@ -11,6 +11,13 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 drush_errors_on();
 
+if (!defined('CRITICAL_LOAD_MULTIPLIER')) {
+  define('CRITICAL_LOAD_MULTIPLIER', 5);
+}
+if (!defined('CRITICAL_LOAD_THRESHOLD')) {
+  define('CRITICAL_LOAD_THRESHOLD', 10);
+}
+
 /**
  * Return an instance of the provision autoloader.
  *
@@ -464,49 +471,23 @@ function _scrub_object($input) {
  * @see drush_invoke_process()
  */
 function provision_backend_invoke($target, $command, $arguments = array(), $data = array(), $mode = 'GET') {
-  $context = '@' . ltrim($target, '@');
-  $backend_options = array('method' => $mode, 'integrate' => TRUE, 'dispatch-using-alias' => TRUE);
-
-  if ($context !== '@none') {
-    $target_context = d($context, FALSE, FALSE);
-    if (is_object($target_context) && $target_context->type === 'site') {
-      $drush_path = provision_platform_drush_path($target_context);
-      if (empty($drush_path)) {
-        drush_set_error('PROVISION_PLATFORM_DRUSH_MISSING',
-          dt('No per-platform Drush binary found for @site.', array('@site' => $context)));
-        return array('error_status' => 1, 'context' => array(), 'output' => '');
-      }
-      $backend_options['drush'] = $drush_path;
-      $backend_options['drush-script'] = $drush_path;
-      drush_log(dt('Using platform Drush for @site: @path', array('@site' => $context, '@path' => $drush_path)), 'debug');
-    }
-  }
-
-  return drush_invoke_process($context, $command, $arguments, $data, $backend_options);
+  $executor = new Provision_Drush_Backend_Executor();
+  return $executor->invoke($target, $command, $arguments, $data, $mode);
 }
 
 /**
- * Resolve the platform-specific Drush binary for a site context.
+ * Resolve the platform-specific Drush binary for a platform context.
  */
-function provision_platform_drush_path($site_context) {
-  if (!is_object($site_context) || empty($site_context->platform)) {
+function provision_platform_drush_path($platform_context) {
+  $roots = provision_platform_root_candidates($platform_context);
+  if (empty($roots)) {
     return NULL;
   }
-
-  $platform = $site_context->platform;
-  $roots = array();
-  if (!empty($platform->root)) {
-    $roots[] = $platform->root;
-  }
-  if (!empty($platform->repo_path)) {
-    $roots[] = $platform->repo_path;
-  }
-  $roots = array_unique($roots);
 
   $candidates = array();
   foreach ($roots as $root) {
     $candidates[] = $root . '/vendor/bin/drush';
-    $candidates[] = dirname($root) . '/vendor/bin/drush';
+    $candidates[] = $root . '/vendor/drush/drush/drush';
   }
 
   foreach ($candidates as $candidate) {
@@ -516,6 +497,256 @@ function provision_platform_drush_path($site_context) {
   }
 
   return NULL;
+}
+
+/**
+ * Resolve candidate platform roots for a context.
+ */
+function provision_platform_root_candidates($platform_context) {
+  if (!is_object($platform_context)) {
+    return array();
+  }
+
+  $roots = array();
+  if (!empty($platform_context->repo_path)) {
+    $roots[] = $platform_context->repo_path;
+  }
+  if (!empty($platform_context->root)) {
+    $roots[] = $platform_context->root;
+  }
+  $roots = array_unique($roots);
+
+  $candidates = array();
+  foreach ($roots as $root) {
+    $candidates[] = $root;
+    if (preg_match('#/(web|docroot|html)$#', $root)) {
+      $candidates[] = dirname($root);
+    }
+  }
+
+  return array_values(array_unique($candidates));
+}
+
+/**
+ * Resolve the platform-specific PHP binary for a platform context.
+ */
+function provision_platform_php_path($platform_context) {
+  if (!is_object($platform_context) || empty($platform_context->php_path)) {
+    return NULL;
+  }
+
+  return $platform_context->php_path;
+}
+
+/**
+ * Load Provision hook files once per request.
+ */
+function provision_load_commandfiles() {
+  static $loaded = FALSE;
+  if ($loaded) {
+    return;
+  }
+
+  $root = dirname(__FILE__);
+
+  require_once $root . '/provision.context.inc';
+  require_once $root . '/provision.service.inc';
+  require_once $root . '/provision.file.inc';
+  require_once $root . '/db/db.drush.inc';
+  require_once $root . '/http/http.drush.inc';
+  require_once $root . '/platform/provision_drupal.drush.inc';
+  require_once $root . '/parse.backend.inc';
+
+  foreach (glob($root . '/platform/*.provision.inc') as $file) {
+    require_once $file;
+  }
+  foreach (glob($root . '/http/*.provision.inc') as $file) {
+    require_once $file;
+  }
+
+  $loaded = TRUE;
+}
+
+/**
+ * Return command hook implementations based on loaded functions.
+ */
+function provision_command_hook_implementations($hook) {
+  $functions = get_defined_functions();
+  $user_functions = isset($functions['user']) ? $functions['user'] : array();
+  $implementations = array();
+  $pattern = '/^drush_.*_' . preg_quote($hook, '/') . '$/';
+  foreach ($user_functions as $function) {
+    if (preg_match($pattern, $function)) {
+      $implementations[] = $function;
+    }
+  }
+  return $implementations;
+}
+
+/**
+ * Invoke provision hook implementations and merge results.
+ */
+function provision_command_invoke_all($hook) {
+  $args = func_get_args();
+  array_shift($args);
+
+  $results = array();
+  foreach (provision_command_hook_implementations($hook) as $function) {
+    $result = call_user_func_array($function, $args);
+    if ($result === NULL) {
+      continue;
+    }
+    if (is_array($result)) {
+      $results = array_merge($results, $result);
+    }
+    else {
+      $results[] = $result;
+    }
+  }
+
+  return $results;
+}
+
+/**
+ * Invoke provision hook implementations that accept references.
+ */
+function provision_command_invoke_all_ref($hook, &...$args) {
+  $results = array();
+  foreach (provision_command_hook_implementations($hook) as $function) {
+    $result = call_user_func_array($function, $args);
+    if ($result === NULL) {
+      continue;
+    }
+    if (is_array($result)) {
+      $results = array_merge($results, $result);
+    }
+    else {
+      $results[] = $result;
+    }
+  }
+
+  return $results;
+}
+
+/**
+ * This will abort any process running drush provision commands if the
+ * user running the command is root.
+ */
+function _provision_drush_check_user($command = NULL) {
+  $command_name = provision_drush_command_name();
+  if ($command !== NULL && is_array($command) && isset($command['command'])) {
+    $command_name = $command['command'];
+  }
+  $name = posix_getpwuid(posix_geteuid());
+  if ($command_name && preg_match("/^provision-\\b/", $command_name) && $name['name'] == 'root') {
+    return drush_set_error('PROVISION_IS_ROOT', dt('You are running the provision script as the root user. Exiting'));
+  }
+}
+
+/**
+ * This will abort any process running drush if the load is critical.
+ *
+ * @see provision_load_critical()
+ */
+function _provision_drush_check_load() {
+  $load = sys_getloadavg();
+  if (provision_load_critical($load)) {
+    drush_set_error('PROVISION_OVERLOAD', dt("load on system too heavy (@load), aborting", array('@load' => join(" ", $load))));
+    exit(1);
+  }
+}
+
+/**
+ * Check whether a Hosting feature is enabled.
+ */
+function provision_hosting_feature_enabled($feature) {
+  $features = drush_get_option('hosting_features', array());
+  return array_key_exists($feature, $features) && $features[$feature];
+}
+
+/**
+ * Generate one-time login link.
+ */
+function provision_generate_login_reset() {
+  $uri = d()->redirection ?: d()->uri;
+  $result = provision_backend_invoke(d()->name, 'user-login', array(), array('uri' => $uri, 'no-browser' => TRUE));
+
+  return $result['output'];
+}
+
+/**
+ * Determine a default web group for platform ownership.
+ */
+function _provision_default_web_group() {
+  $info = posix_getgrgid(posix_getgid());
+  $common_groups = array(
+    'www-data',
+    'apache',
+    'nginx',
+    'www',
+    '_www',
+    'webservd',
+    'httpd',
+    'nogroup',
+    'nobody',
+    $info['name'],
+  );
+
+  foreach ($common_groups as $group) {
+    if (provision_posix_groupname($group)) {
+      return $group;
+    }
+  }
+  return NULL;
+}
+
+/**
+ * determine the number of CPU on the machine
+ *
+ * This tries a best guess at the number of CPUs running on the system. This is
+ * useful for calculating sane load threshold.
+ *
+ * @see provision_load_critical()
+ */
+function provision_count_cpus() {
+  $ncpus = FALSE;
+  if (is_readable("/data/all/cpuinfo")) {
+    // this should work on BOA with a /data/all/cpuinfo generated daily
+    $cpuinfo = (int) file_get_contents("/data/all/cpuinfo");
+    if ($cpuinfo !== FALSE && is_numeric($cpuinfo)) {
+      $ncpus = $cpuinfo;
+    }
+  }
+  else {
+    // if we don't have /data/all/cpuinfo, use /proc/cpuinfo
+    $file = @file_get_contents("/proc/cpuinfo");
+    if (!empty($file)) {
+      $cpuinfo = substr_count($file, "\nprocessor\t:");
+      if ($cpuinfo !== FALSE && is_numeric($cpuinfo)) {
+        $ncpus = $cpuinfo + 1;
+      }
+    }
+  }
+  return $ncpus;
+}
+
+/**
+ * Check the system load.
+ */
+function provision_load_critical($load = NULL, $threshold = NULL) {
+  if (is_null($load)) {
+    $load = sys_getloadavg();
+  }
+  if (is_null($threshold)) {
+    if ($ncpus = provision_count_cpus()) {
+      $threshold = $ncpus * drush_get_option('critical_load_multiplier', CRITICAL_LOAD_MULTIPLIER);
+    }
+    else {
+      // can't determine the number of CPU, we hardcode at load 10
+      $threshold = drush_get_option('critical_load_threshold', CRITICAL_LOAD_THRESHOLD);
+    }
+  }
+  return ($load[0] > $threshold);
 }
 
 /**

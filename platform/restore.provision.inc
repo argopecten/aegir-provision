@@ -41,7 +41,7 @@ function drush_provision_drupal_provision_restore($restore_file) {
     'old_uri' => d()->uri,
     'strict' => 0,
   );
-  drush_command_invoke_all_ref('provision_deploy_options_alter', $deploy_options, 'restore');
+  provision_command_invoke_all_ref('provision_deploy_options_alter', $deploy_options, 'restore');
 
   provision_backend_invoke(d()->name, 'provision-deploy', array(drush_get_option('restore_file')), $deploy_options);
   if (!drush_get_error()) {

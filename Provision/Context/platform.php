@@ -16,10 +16,12 @@ class Provision_Context_platform extends Provision_Context {
       'root' => 'platform: path to a Drupal installation',
       'server' => 'platform: drush backend server; default @server_master',
       'web_server' => 'platform: web server hosting the platform; default @server_master',
+      'php_path' => 'platform: absolute path to the PHP binary for this platform',
     );
   }
 
   function init_platform() {
     $this->setProperty('root');
+    $this->setProperty('php_path');
   }
 }

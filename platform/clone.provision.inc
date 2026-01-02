@@ -88,7 +88,7 @@ function drush_provision_drupal_provision_clone($new_name, $platform = null) {
     'old_uri' => d()->uri,
     'strict' => 0,
   );
-  drush_command_invoke_all_ref('provision_deploy_options_alter', $deploy_options, 'clone');
+  provision_command_invoke_all_ref('provision_deploy_options_alter', $deploy_options, 'clone');
 
   provision_backend_invoke($new_name, 'provision-deploy', array(drush_get_option('backup_file')), $deploy_options);
 

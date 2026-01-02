@@ -4,7 +4,7 @@
  * Provision API
  *
  * @see drush.api.php
- * @see drush_command_invoke_all()
+ * @see provision_command_invoke_all()
  * @see http://docs.aegirproject.org/en/3.x/extend/altering-behaviours/
  */
 

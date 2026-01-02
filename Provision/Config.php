@@ -117,13 +117,13 @@ class Provision_Config {
   private function load_template() {
 
     // Allow other Drush commands to change the template used first.
-    $templates = drush_command_invoke_all('provision_config_load_templates', $this);
+    $templates = provision_command_invoke_all('provision_config_load_templates', $this);
     // Ensure that templates is at least an array.
     if (!is_array($templates)) {
       $templates = array();
     }
     // Allow other Drush commands to alter the templates from other commands.
-    drush_command_invoke_all_ref('provision_config_load_templates_alter', $templates, $this);
+    provision_command_invoke_all_ref('provision_config_load_templates_alter', $templates, $this);
     if (!empty($templates) && is_array($templates)) {
       foreach ($templates as $file) {
         if (is_readable($file)) {
@@ -170,7 +170,7 @@ class Provision_Config {
 
     // Allow modules to alter the variables before writing to the template.
     // @see hook_provision_config_variables_alter()
-    drush_command_invoke_all_ref('provision_config_variables_alter', $variables, $template, $this);
+    provision_command_invoke_all_ref('provision_config_variables_alter', $variables, $template, $this);
     
     drush_errors_off();
     extract($variables, EXTR_SKIP);  // Extract the variables to a local namespace

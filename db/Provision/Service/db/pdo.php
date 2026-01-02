@@ -21,7 +21,7 @@ class Provision_Service_db_pdo extends Provision_Service_db {
     $pass = isset($this->creds['pass']) ? $this->creds['pass'] : '';
     $options = [];
 
-    drush_command_invoke_all_ref('provision_db_options_alter', $options, $this->dsn);
+    provision_command_invoke_all_ref('provision_db_options_alter', $options, $this->dsn);
     try {
       $this->conn = new PDO($this->dsn, $user, $pass, $options);
       return $this->conn;
@@ -88,7 +88,7 @@ class Provision_Service_db_pdo extends Provision_Service_db {
   function database_exists($name) {
     $dsn = $this->dsn . ';dbname=' . $name;
     $options = [];
-    drush_command_invoke_all_ref('provision_db_options_alter', $options, $dsn);
+    provision_command_invoke_all_ref('provision_db_options_alter', $options, $dsn);
     try {
       // Try to connect to the DB to test if it exists.
       $conn = new PDO($dsn, $this->creds['user'], $this->creds['pass'], $options);

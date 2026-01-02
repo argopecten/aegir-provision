@@ -99,7 +99,7 @@ class Provision_Service_db_mysql extends Provision_Service_db_pdo {
 
   function revoke($name, $username, $host = '') {
     $host = ($host) ? $host : '%';
-    drush_command_invoke_all_ref('provision_db_username_alter', $username, '', 'revoke');
+    provision_command_invoke_all_ref('provision_db_username_alter', $username, '', 'revoke');
     $success = $this->query("REVOKE ALL PRIVILEGES ON `%s`.* FROM `%s`@`%s`", $name, $username, $host);
 
     // check if there are any privileges left for the user
@@ -161,7 +161,7 @@ class Provision_Service_db_mysql extends Provision_Service_db_pdo {
 
   function grant_host(Provision_Context_server $server) {
     $user = 'intntnllyInvalid';
-    drush_command_invoke_all_ref('provision_db_username_alter', $user, $this->server->remote_host);
+    provision_command_invoke_all_ref('provision_db_username_alter', $user, $this->server->remote_host);
 
     $command = sprintf('mysql -u %s -h %s -P %s -e "SELECT VERSION()"',
       escapeshellarg($user),
@@ -202,7 +202,7 @@ class Provision_Service_db_mysql extends Provision_Service_db_pdo {
     if (is_null($db_user)) {
       $db_user = urldecode(drush_get_option('db_user'));
     }
-    drush_command_invoke_all_ref('provision_db_username_alter', $db_user, $db_host);
+    provision_command_invoke_all_ref('provision_db_username_alter', $db_user, $db_host);
     if (is_null($db_passwd)) {
       $db_passwd = urldecode(drush_get_option('db_passwd'));
     }
@@ -255,7 +255,7 @@ port=%s
       );
 
       // Allow regexes to be altered or appended to.
-      drush_command_invoke_all_ref('provision_mysql_regex_alter', $regexes);
+      provision_command_invoke_all_ref('provision_mysql_regex_alter', $regexes);
     }
     return $regexes;
   }

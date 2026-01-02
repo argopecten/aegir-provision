@@ -14,6 +14,6 @@ class Provision_Config_Nginx_Ssl_Server extends Provision_Config_Http_Ssl_Server
   function process() {
     parent::process();
     $this->data['extra_config'] = "# Extra configuration from modules:\n";
-    $this->data['extra_config'] .= join("\n", drush_command_invoke_all('provision_nginx_server_config', $this->data));
+    $this->data['extra_config'] .= join("\n", provision_command_invoke_all('provision_nginx_server_config', $this->data));
   }
 }

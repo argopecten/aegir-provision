@@ -135,7 +135,7 @@ function drush_provision_drupal_provision_backup() {
 
 function drush_provision_drupal_provision_backup_get_exclusions() {
   $directories = PROVISION_BACKUP_EXCLUDED_DIRECTORIES;
-  drush_command_invoke_all_ref('provision_backup_exclusions_alter', $directories);
+  provision_command_invoke_all_ref('provision_backup_exclusions_alter', $directories);
 
   $exclusions = "";
   foreach ($directories as $directory) {

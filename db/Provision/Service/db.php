@@ -70,7 +70,7 @@ class Provision_Service_db extends Provision_Service {
     $uri = $this->context->uri;
 
     $suggest_base = substr(str_replace(array('.', '-'), '' , preg_replace('/^www\./', '', $uri)), 0, 16);
-    drush_command_invoke_all_ref('provision_suggest_db_name_alter', $suggest_base);
+    provision_command_invoke_all_ref('provision_suggest_db_name_alter', $suggest_base);
 
     if (!$this->database_exists($suggest_base)) {
       return $suggest_base;
@@ -198,7 +198,7 @@ class Provision_Service_db extends Provision_Service {
     $creds['db_passwd'] = drush_set_option('db_passwd', provision_password(), 'site');
     $creds['db_name'] = drush_set_option('db_name', $this->suggest_db_name(), 'site');
     $user = $creds['db_name'];
-    drush_command_invoke_all_ref('provision_db_username_alter', $user, $creds['db_host']);
+    provision_command_invoke_all_ref('provision_db_username_alter', $user, $creds['db_host']);
     $creds['db_user'] = drush_set_option('db_user', $user, 'site');
 
     return $creds;

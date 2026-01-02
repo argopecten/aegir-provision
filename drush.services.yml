@@ -1,0 +1,5 @@
+services:
+  provision.commands:
+    class: Provision_Drush_Commands_ProvisionCommands
+    tags:
+      - { name: drush.command }

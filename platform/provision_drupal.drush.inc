@@ -121,7 +121,7 @@ function provision_drupal_push_site($override_slave_authority = FALSE) {
 
   // Sync the platform
   $sync_path = d()->root;
-  drush_command_invoke_all_ref('provision_platform_sync_path_alter', $sync_path);
+  provision_command_invoke_all_ref('provision_platform_sync_path_alter', $sync_path);
   d()->service('http')->sync($sync_path, array('exclude-sites' => TRUE));
 
   if (d()->type === 'site') {
@@ -353,10 +353,10 @@ function _provision_drupal_create_directories($url = NULL) {
   // Allow other commands to add or alter the directories to be created,
   // chmod'd or chgrp'd.
   // TODO: Figure out a better way to do this.
-  drush_command_invoke_all_ref('provision_drupal_create_directories_alter', $mkdir, $url);
-  drush_command_invoke_all_ref('provision_drupal_chgrp_directories_alter', $chgrp, $url);
-  drush_command_invoke_all_ref('provision_drupal_chgrp_not_recursive_alter', $chgrp_not_recursive, $url);
-  drush_command_invoke_all_ref('provision_drupal_chmod_not_recursive_alter', $chmod_not_recursive, $url);
+  provision_command_invoke_all_ref('provision_drupal_create_directories_alter', $mkdir, $url);
+  provision_command_invoke_all_ref('provision_drupal_chgrp_directories_alter', $chgrp, $url);
+  provision_command_invoke_all_ref('provision_drupal_chgrp_not_recursive_alter', $chgrp_not_recursive, $url);
+  provision_command_invoke_all_ref('provision_drupal_chmod_not_recursive_alter', $chmod_not_recursive, $url);
 
   foreach ($mkdir as $path => $perm) {
     if (!is_dir($path)) {
@@ -666,7 +666,7 @@ function provision_prepare_environment() {
 
   // Invoke provision_prepare_environment: Allow other scripts to react to the
   // preparation of the environment variables.
-  drush_command_invoke_all('provision_prepare_environment');
+  provision_command_invoke_all('provision_prepare_environment');
 
 }
 
