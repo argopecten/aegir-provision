@@ -53,10 +53,10 @@ class Provision_Service_db extends Provision_Service {
         drush_set_error('PROVISION_GRANT_DB_USER_FAILED');
       }
       if ($this->server->utf8mb4_is_supported) {
-        drush_log(dt('Provision can activate multi-byte UTF-8 support on Drupal 7 sites.'), 'success');
+        drush_log(dt('Provision can activate multi-byte UTF-8 support on Drupal 8+ sites.'), 'success');
       }
       else {
-        drush_log(dt('Multi-byte UTF-8 for Drupal 7 is not supported on your system. See the <a href="@url">documentation on adding 4 byte UTF-8 support</a> for more information.', array('@url' => 'https://www.drupal.org/node/2754539')), 'warning');
+        drush_log(dt('Multi-byte UTF-8 for Drupal 8+ is not supported on your system. See the <a href="@url">documentation on adding 4 byte UTF-8 support</a> for more information.', array('@url' => 'https://www.drupal.org/node/2754539')), 'warning');
       }
     } else {
       drush_set_error('PROVISION_CONNECT_DB_FAILED');
@@ -186,8 +186,8 @@ class Provision_Service_db extends Provision_Service {
     $creds = array();
     // replace with service type
     $db_type = drush_get_option('db_type', function_exists('mysqli_connect') ? 'mysqli' : 'mysql');
-    // As of Drupal 7 there is no more mysqli type
-    if (drush_drupal_major_version() >= 7) {
+    // As of Drupal 8 there is no more mysqli type
+    if (drush_drupal_major_version() >= 8) {
       $db_type = ($db_type == 'mysqli') ? 'mysql' : $db_type;
     }
 

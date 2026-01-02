@@ -1332,7 +1332,7 @@ location @cache {
 ### Send all not cached requests to drupal with clean URLs support.
 ###
 location @drupal {
-  set $core_detected "Legacy";
+  set $core_detected "Fallback";
   set $location_detected "Nowhere";
   ###
   ### Detect
@@ -1342,10 +1342,6 @@ location @drupal {
   }
   if ( -e $document_root/core ) {
     set $core_detected "Modern";
-  }
-  error_page 402 = @legacy;
-  if ( $core_detected = Legacy ) {
-    return 402;
   }
   error_page 406 = @regular;
   if ( $core_detected = Regular ) {
@@ -1363,15 +1359,7 @@ location @drupal {
 }
 
 ###
-### Special location for Drupal 6.
-###
-location @legacy {
-  set $location_detected "Legacy";
-  rewrite ^/(.*)$ /index.php?q=$1 last;
-}
-
-###
-### Special location for Drupal 7.
+### Special location for Drupal 8+.
 ###
 location @regular {
   set $location_detected "Regular";
@@ -1379,7 +1367,7 @@ location @regular {
 }
 
 ###
-### Special location for Drupal 8.
+### Special location for Drupal 8+.
 ###
 location @modern {
   set $location_detected "Modern";

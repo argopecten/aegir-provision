@@ -197,10 +197,6 @@ function provision_drush_command() {
       'drush @platform provision-verify' => 'Verify the platform as defined by the platform Drush alias generated with provision-save.',
     ),
     'options' => array(
-      'working-copy' => array(
-        'description' => dt('Keep VCS files when building the a platform using Drush make.'),
-        'hidden' => TRUE,
-      ),
       'override_slave_authority' => array(
         'description' => dt('Push the site specific files directory to a slave. This overrides the slaves authority.'),
       ),
@@ -291,58 +287,6 @@ function provision_drush_command() {
     'allow-additional-options' => TRUE,
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH
 
-  );
-
-  $items['hostmaster-migrate'] = array(
-    'description' => dt('Migrate an instance of the Hostmaster front end to a new platform'),
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_ROOT,
-    'arguments' => array(
-      'example.com' => dt('The name of the site to migrate'),
-      '/path/to/platform' => dt('The platform to migrate the site to.'),
-    ),
-    'options' => array(
-      'http_service_type' => dt('Webserver type to configure (default: %webserver)', array('%webserver' => 'apache')),
-      'makefile' => dt('The makefile used to create the hostmaster platform (default: %makefile)', array('%makefile' => dirname(__FILE__). '/aegir.make')),
-      'working-copy' => dt('Keep VCS files when building the hostmaster platform using Drush make.')
-    ),
-  );
-
-  $items['hostmaster-install'] = array(
-    'description' => dt('Install and verify the Hostmaster frontend.'),
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
-    'arguments' => array(
-      'example.com' => dt('The URL of the site to install, optional (default: %host).', array('%host' => provision_fqdn())),
-    ),
-    'options' => array
-    (
-     'http_service_type' => dt('Webserver type to configure (default: %webserver)', array('%webserver' => 'apache')),
-     'aegir_db_host' => dt('Database host to connect to (default: %host)', array('%host' => 'localhost')),
-     'aegir_db_user' => dt('Database user to connect as (default: %user)', array('%user' => 'root')),
-     'aegir_db_pass' => dt('Database password to use'),
-     'aegir_db_port' => dt('Database port to use (default: %port)', array('%port' => '3306')),
-     'aegir_db_grant_all_hosts' => dt('Allow connection from arbitrary web hosts. (Default: FALSE)'),
-     'client_email' => dt('Email of the first client to create in the frontend'),
-     'client_name' => dt('Name of the first client to create in the frontend (default: %user)', array('%user' => 'admin')),
-     'makefile' => dt('The makefile used to create the hostmaster platform (default: %makefile)', array('%makefile' => dirname(__FILE__). '/aegir.make')),
-     'aegir_host' => dt('Fully qualified domain name of the local server (default: %fqdn)', array('%fqdn' => provision_fqdn())),
-     'script_user' => dt('User to run the backend as (default: %user)', array('%user' => provision_current_user())),
-     'web_group' => dt('Group the webserver is running as (default: %group)', array('%group' => _provision_default_web_group())),
-     'http_port' => dt('Port the webserver is running on (default: %port)', array('%port' => '80')),
-     'version' => dt('The version of this released. (default: %version)', array('%version' => provision_version())),
-     'aegir_root' => dt('Install aegir in this home directory (default: %home). Do not change unless you know what you are doing.', array('%home' => drush_server_home())),
-     'root' => dt('Install the frontend in this directory (default: %home/hostmaster-%version).', array('%home' => drush_server_home(), '%version' => provision_version())),
-     'backend-only' => dt('Install just the backend, and not the frontend UI.'),
-     'working-copy' => dt('Keep VCS files when building the hostmaster platform using Drush make.')
-     ),
-  );
-
-  $items['hostmaster-uninstall'] = array(
-    'description' => dt('Uninstall the Hostmaster frontend.'),
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_SITE,
-    'options' => array
-    (
-     'all' => dt('Destroy *ALL* sites managed by the Aegir frontend'),
-     ),
   );
 
   $items['backend-parse'] = array(

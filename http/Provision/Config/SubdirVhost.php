@@ -34,7 +34,7 @@ class Provision_Config_SubdirVhost extends Provision_Config_Http {
    * Check if the (real) parent site (drushrc) exists.
    */
   function parent_site() {
-    $drush_home_dir = drush_server_home() . '/.drush/';
+    $drush_home_dir = provision_drush_server_home() . '/.drush/';
     $parent_site_drushrc = $drush_home_dir . $this->uri() . '.alias.drushrc.php';
     drush_log(dt('Checking for parent site %vhost', ['%vhost' => $this->uri()]), 'notice');
     if (provision_file()->exists($parent_site_drushrc)->status()
@@ -58,7 +58,7 @@ class Provision_Config_SubdirVhost extends Provision_Config_Http {
       ];
       if ($this->parent_site()) {
         drush_log(dt('Parent site (%vhost) exists for alias %alias, skipping generation of default parent vhost.', $log_vars), 'notice');
-        if (drush_parse_command()['command'] == 'provision-install') {
+        if (provision_drush_command_name() === 'provision-install') {
           drush_log(dt('Parent site (%vhost) re-verify required to include subdir config for %alias', $log_vars), 'warning');
         }
       }

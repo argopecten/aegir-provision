@@ -61,11 +61,11 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
 
     // Check if some nginx features are supported and save them for later.
     $this->server->shell_exec($path . ' -V');
-    $this->server->nginx_is_modern = preg_match("/nginx\/1\.((1\.(8|9|(1[0-9]+)))|((2|3|4|5|6|7|8|9|[1-9][0-9]+)\.))/", implode('', drush_shell_exec_output()), $match);
-    $this->server->nginx_has_etag = preg_match("/nginx\/1\.([12][0-9]|[3]\.([12][0-9]|[3-9]))/", implode('', drush_shell_exec_output()), $match);
-    $this->server->nginx_has_http2 = preg_match("/http_v2_module/", implode('', drush_shell_exec_output()), $match);
-    $this->server->nginx_has_upload_progress = preg_match("/upload/", implode('', drush_shell_exec_output()), $match);
-    $this->server->nginx_has_gzip = preg_match("/http_gzip_static_module/", implode('', drush_shell_exec_output()), $match);
+    $this->server->nginx_is_modern = preg_match("/nginx\/1\.((1\.(8|9|(1[0-9]+)))|((2|3|4|5|6|7|8|9|[1-9][0-9]+)\.))/", implode('', provision_shell_exec_output()), $match);
+    $this->server->nginx_has_etag = preg_match("/nginx\/1\.([12][0-9]|[3]\.([12][0-9]|[3-9]))/", implode('', provision_shell_exec_output()), $match);
+    $this->server->nginx_has_http2 = preg_match("/http_v2_module/", implode('', provision_shell_exec_output()), $match);
+    $this->server->nginx_has_upload_progress = preg_match("/upload/", implode('', provision_shell_exec_output()), $match);
+    $this->server->nginx_has_gzip = preg_match("/http_gzip_static_module/", implode('', provision_shell_exec_output()), $match);
 
     // Use basic nginx configuration if this control file exists.
     $nginx_config_mode_file = "/etc/nginx/basic_nginx.conf";
@@ -117,11 +117,11 @@ class Provision_Service_http_nginx extends Provision_Service_http_public {
     }
     // Check if some nginx features are supported and save them for later.
     $this->server->shell_exec($path . ' -V');
-    $this->server->nginx_is_modern = preg_match("/nginx\/1\.((1\.(8|9|(1[0-9]+)))|((2|3|4|5|6|7|8|9|[1-9][0-9]+)\.))/", implode('', drush_shell_exec_output()), $match);
-    $this->server->nginx_has_etag = preg_match("/nginx\/1\.([12][0-9]|[3]\.([12][0-9]|[3-9]))/", implode('', drush_shell_exec_output()), $match);
-    $this->server->nginx_has_http2 = preg_match("/http_v2_module/", implode('', drush_shell_exec_output()), $match);
-    $this->server->nginx_has_upload_progress = preg_match("/upload/", implode('', drush_shell_exec_output()), $match);
-    $this->server->nginx_has_gzip = preg_match("/http_gzip_static_module/", implode('', drush_shell_exec_output()), $match);
+    $this->server->nginx_is_modern = preg_match("/nginx\/1\.((1\.(8|9|(1[0-9]+)))|((2|3|4|5|6|7|8|9|[1-9][0-9]+)\.))/", implode('', provision_shell_exec_output()), $match);
+    $this->server->nginx_has_etag = preg_match("/nginx\/1\.([12][0-9]|[3]\.([12][0-9]|[3-9]))/", implode('', provision_shell_exec_output()), $match);
+    $this->server->nginx_has_http2 = preg_match("/http_v2_module/", implode('', provision_shell_exec_output()), $match);
+    $this->server->nginx_has_upload_progress = preg_match("/upload/", implode('', provision_shell_exec_output()), $match);
+    $this->server->nginx_has_gzip = preg_match("/http_gzip_static_module/", implode('', provision_shell_exec_output()), $match);
 
     // Use basic nginx configuration if this control file exists.
     $nginx_config_mode_file = "/etc/nginx/basic_nginx.conf";

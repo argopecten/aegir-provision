@@ -2,4 +2,4 @@
 
 // Fetch the cron key from the Drupal site and set in a drush context.
 
-// Drupal 8+ uses version-specific cron key handlers.
+drush_set_option('cron_key', \Drupal::state()->get('system.cron_key'));

@@ -1199,28 +1199,13 @@ location @cache_<?php print $subdir_loc; ?> {
 ### Send all not cached requests to drupal with clean URLs support.
 ###
 location @drupal_<?php print $subdir_loc; ?> {
-  set $core_detected "Legacy";
-  ###
-  ### For Drupal >= 7
-  ###
-  if ( -e $document_root/web.config ) {
-    set $core_detected "Regular";
-  }
-  if ( -e $document_root/core ) {
-    set $core_detected "Modern";
-  }
+  set $core_detected "Modern";
   error_page 418 = @modern_<?php print $subdir_loc; ?>;
-  if ( $core_detected ~ (?:NotForD7|Modern) ) {
-    return 418;
-  }
-  ###
-  ### For Drupal 6
-  ###
-  rewrite ^/<?php print $subdir; ?>/(.*)$  /<?php print $subdir; ?>/index.php?q=$1 last;
+  return 418;
 }
 
 ###
-### Special location for Drupal 7+.
+### Special location for Drupal 8+.
 ###
 location @modern_<?php print $subdir_loc; ?> {
   try_files $uri /<?php print $subdir; ?>/index.php?$query_string;

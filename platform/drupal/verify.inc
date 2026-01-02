@@ -15,13 +15,8 @@ if (drush_drupal_major_version() >= 8) {
   // https://www.drupal.org/project/drupal/issues/2942001
   drush_set_option('themes', _scrub_object(\Drupal::service('theme_handler')->rebuildThemeData()), 'site');
 }
-elseif (drush_drupal_major_version() == 7) {
-  drush_set_option('modules', _scrub_object(system_rebuild_module_data()), 'site');
-  drush_set_option('themes', _scrub_object(system_rebuild_theme_data()), 'site');
-}
 else {
-  drush_set_option('modules', _scrub_object(module_rebuild_cache()), 'site');
-  drush_set_option('themes', _scrub_object(system_theme_data()), 'site');
+  return drush_set_error('PROVISION_UNSUPPORTED_DRUPAL_VERSION', dt('Drupal 6 and 7 are not supported.'));
 }
 
 drush_set_option('engines', _scrub_object(drupal_system_listing('\.engine$', 'themes/engines')), 'site');

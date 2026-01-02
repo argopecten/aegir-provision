@@ -26,7 +26,7 @@ class Provision_Service_http_public extends Provision_Service_http {
       // DO not create it with the port here. Protocol only is enough.
       $data['redirect_url'] = "http://{$this->context->uri}";
 
-      $data = array_merge($data, drush_get_context('site'));
+      $data = array_merge($data, provision_get_context('site', array()));
     }
 
     return $data;

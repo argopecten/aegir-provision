@@ -7,7 +7,7 @@
 /**
  * Find themes in a certain scope.
  *
- * This function is based on _system_theme_data in Drupal 6 and Drupal 7.
+ * This function is based on earlier Drupal theme discovery logic.
  * We do not support, nor need information on subthemes at this point.
  */
 function _provision_drupal_find_themes($scope, $key = '') {
@@ -225,4 +225,3 @@ function _provision_drupal_search_paths($scope, $key = '', $type = 'modules') {
   }
   return $searchpaths;
 }
-

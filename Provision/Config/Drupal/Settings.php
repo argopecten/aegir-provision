@@ -5,7 +5,7 @@
  */
 
 class Provision_Config_Drupal_Settings extends Provision_Config {
-  public $template = 'provision_drupal_settings_7.tpl.php';
+  public $template = 'provision_drupal_settings_8.tpl.php';
   public $description = 'Drupal settings.php file';
   public $creds = array();
   protected $mode = 0440;
@@ -34,17 +34,6 @@ class Provision_Config_Drupal_Settings extends Provision_Config {
       require_once $drupal_root . '/core/lib/Drupal/Component/Utility/Crypt.php';
       $this->data['drupal_hash_salt_var'] = Drupal\Component\Utility\Crypt::randomBytesBase64(55);
       $this->data['maintenance_var_new'] = TRUE;
-    }
-    elseif (drush_drupal_major_version() == 7) {
-      $this->template = 'provision_drupal_settings_7.tpl.php';
-      $this->data['db_type'] = ($this->data['db_type'] == 'mysqli') ? 'mysql' : $this->data['db_type'];
-      $this->data['utf8mb4_is_configurable'] = version_compare(drush_drupal_version(), '7.50', '>=');
-      $this->data['utf8mb4_is_supported'] = $this->db_server->utf8mb4_is_supported;
-      $this->data['maintenance_var_new'] = TRUE;
-    }
-    elseif (drush_drupal_major_version() <= 6) {
-      $this->template = 'provision_drupal_settings_6.tpl.php';
-      $this->data['maintenance_var_new'] = FALSE;
     }
 
     $this->version = provision_version();

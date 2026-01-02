@@ -308,7 +308,7 @@ class Provision_FileSystem extends Provision_ChainedState {
         }
 
         drush_log(dt('Running: %command in %target', array('%command' => sprintf($command, $path), '%target' => $target)));
-        $result = drush_shell_exec($command, $path);
+        $result = provision_shell_exec($command, $path);
         chdir($oldcwd);
 
         if ($result && is_writeable(dirname($target)) && is_readable(dirname($target)) && is_dir($target)) {

@@ -99,7 +99,7 @@ function drush_provision_drupal_provision_backup() {
   }
 
   $exclude_tag = "touch" . drush_provision_drupal_provision_backup_get_exclusions();
-  drush_shell_exec($exclude_tag);
+  provision_shell_exec($exclude_tag);
 
   $command_base = "tar cpf";
   $command_arguments = " %s --exclude-tag=exclude.tag";
@@ -112,7 +112,7 @@ function drush_provision_drupal_provision_backup() {
     $command = $command_base . $command_arguments;
   }
   $command .= ' .';
-  $result = drush_shell_exec($command,  $backup_file);
+  $result = provision_shell_exec($command,  $backup_file);
 
   // Get the size of the backup
   $size = filesize($backup_file);

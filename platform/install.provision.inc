@@ -132,11 +132,13 @@ function drush_provision_drupal_post_provision_install() {
     _provision_drupal_rebuild_caches();
     drush_set_option('packages', _scrub_object(provision_drupal_system_map()), 'site');
     _provision_client_create_symlink();
-    drush_include_engine('drupal', 'cron_key');
+    $platform = provision_platform();
+    if ($platform) {
+      $platform->cronKey();
+    }
   }
   // For all other install methods, just create the symlink.
   else {
     _provision_client_create_symlink();
   }
 }
-

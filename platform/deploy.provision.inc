@@ -190,7 +190,10 @@ function drush_provision_drupal_post_provision_deploy() {
   }
   // We should be able to fully load Drupal now.
   if (drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL)) {
-    drush_include_engine('drupal', 'deploy');
+    $platform = provision_platform();
+    if ($platform) {
+      $platform->deploy();
+    }
     drush_set_option('packages', _scrub_object(provision_drupal_system_map()), 'site');
     _provision_drupal_rebuild_caches();
 

@@ -66,6 +66,13 @@ function provision_autoload_register_prefix($prefix, $dir, $prepend = FALSE) {
 provision_autoload_register_prefix('Provision_', dirname(__FILE__));
 
 /**
+ * Return the platform handler for the current Drupal major version.
+ */
+function provision_platform() {
+  return Provision_Platform_Factory::current();
+}
+
+/**
  * Return the directory containing the file a class is defined in.
  *
  * @param string $class_name
@@ -277,7 +284,7 @@ function _provision_recursive_delete($path) {
 }
 
 /**
- * Convenience copy of Drupal 6's file_check_location()
+ * Convenience copy of file_check_location()
  *
  * Check if a file is really located inside $directory. Should be used to make
  * sure a file specified is really located within the directory to prevent
@@ -458,7 +465,255 @@ function _scrub_object($input) {
  */
 function provision_backend_invoke($target, $command, $arguments = array(), $data = array(), $mode = 'GET') {
   $context = '@' . ltrim($target, '@');
-  return drush_invoke_process($context, $command, $arguments, $data, array('method' => $mode, 'integrate' => TRUE, 'dispatch-using-alias' => TRUE));
+  $backend_options = array('method' => $mode, 'integrate' => TRUE, 'dispatch-using-alias' => TRUE);
+
+  if ($context !== '@none') {
+    $target_context = d($context, FALSE, FALSE);
+    if (is_object($target_context) && $target_context->type === 'site') {
+      $drush_path = provision_platform_drush_path($target_context);
+      if (empty($drush_path)) {
+        drush_set_error('PROVISION_PLATFORM_DRUSH_MISSING',
+          dt('No per-platform Drush binary found for @site.', array('@site' => $context)));
+        return array('error_status' => 1, 'context' => array(), 'output' => '');
+      }
+      $backend_options['drush'] = $drush_path;
+      $backend_options['drush-script'] = $drush_path;
+      drush_log(dt('Using platform Drush for @site: @path', array('@site' => $context, '@path' => $drush_path)), 'debug');
+    }
+  }
+
+  return drush_invoke_process($context, $command, $arguments, $data, $backend_options);
+}
+
+/**
+ * Resolve the platform-specific Drush binary for a site context.
+ */
+function provision_platform_drush_path($site_context) {
+  if (!is_object($site_context) || empty($site_context->platform)) {
+    return NULL;
+  }
+
+  $platform = $site_context->platform;
+  $roots = array();
+  if (!empty($platform->root)) {
+    $roots[] = $platform->root;
+  }
+  if (!empty($platform->repo_path)) {
+    $roots[] = $platform->repo_path;
+  }
+  $roots = array_unique($roots);
+
+  $candidates = array();
+  foreach ($roots as $root) {
+    $candidates[] = $root . '/vendor/bin/drush';
+    $candidates[] = dirname($root) . '/vendor/bin/drush';
+  }
+
+  foreach ($candidates as $candidate) {
+    if (is_file($candidate) && is_executable($candidate)) {
+      return $candidate;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Execute a shell command in a Drush 8/13 compatible way.
+ *
+ * Use provision_shell_exec_output() to access the last command output.
+ */
+function provision_shell_exec($command) {
+  $args = func_get_args();
+  if (function_exists('drush_shell_exec')) {
+    return call_user_func_array('drush_shell_exec', $args);
+  }
+
+  $command = array_shift($args);
+  $formatted = provision_shell_exec_format($command, $args);
+  return provision_shell_exec_raw($formatted);
+}
+
+/**
+ * Return output from the last provision_shell_exec() call.
+ *
+ * Mirrors drush_shell_exec_output() behavior for Drush 13+.
+ */
+function provision_shell_exec_output() {
+  if (function_exists('drush_shell_exec_output')) {
+    return drush_shell_exec_output();
+  }
+
+  return drush_get_context('provision_shell_exec_output', array());
+}
+
+/**
+ * Format a command string using shell-escaped arguments.
+ */
+function provision_shell_exec_format($command, array $args = array()) {
+  if (empty($args)) {
+    return $command;
+  }
+
+  $escaped = array();
+  foreach ($args as $arg) {
+    if (is_array($arg)) {
+      $escaped[] = implode(' ', array_map('provision_shell_escape', $arg));
+      continue;
+    }
+    $escaped[] = provision_shell_escape($arg);
+  }
+
+  return vsprintf($command, $escaped);
+}
+
+/**
+ * Escape a shell argument consistently across PHP/Drush versions.
+ */
+function provision_shell_escape($arg) {
+  if (is_bool($arg)) {
+    return $arg ? '1' : '0';
+  }
+  if ($arg === NULL) {
+    return "''";
+  }
+
+  return escapeshellarg((string) $arg);
+}
+
+/**
+ * Run a shell command without Drush 8 helpers and store output in context.
+ */
+function provision_shell_exec_raw($command, $cwd = NULL, array $env = array()) {
+  $env = array_merge($_SERVER, $env);
+  $env['TERM'] = 'xterm';
+
+  if (class_exists('\Symfony\Component\Process\Process')) {
+    $process = \Symfony\Component\Process\Process::fromShellCommandline($command, $cwd, $env);
+    $process->setTimeout(NULL);
+    $process->run();
+    $output = $process->getOutput() . $process->getErrorOutput();
+    $lines = $output === '' ? array() : preg_split('/\r?\n/', rtrim($output));
+    drush_set_context('provision_shell_exec_output', $lines);
+    return $process->isSuccessful();
+  }
+
+  exec($command . ' 2>&1', $lines, $exit_code);
+  drush_set_context('provision_shell_exec_output', $lines);
+  return $exit_code === 0;
+}
+
+/**
+ * Return the Drush server home directory across supported Drush versions.
+ */
+function provision_drush_server_home() {
+  if (function_exists('drush_server_home')) {
+    return drush_server_home();
+  }
+  if (class_exists('Drush\\Drush') && method_exists('Drush\\Drush', 'serverHome')) {
+    return \Drush\Drush::serverHome();
+  }
+
+  $home = getenv('HOME');
+  if (function_exists('drush_get_option')) {
+    $home = drush_get_option('home', $home);
+  }
+  return $home;
+}
+
+/**
+ * Return the active Drush command name when available.
+ */
+function provision_drush_command_name() {
+  if (function_exists('drush_parse_command')) {
+    $command = drush_parse_command();
+    if (is_array($command) && isset($command['command'])) {
+      return $command['command'];
+    }
+  }
+
+  if (function_exists('drush_get_command')) {
+    $command = drush_get_command();
+    if (is_array($command) && isset($command['command'])) {
+      return $command['command'];
+    }
+    if (is_string($command)) {
+      return $command;
+    }
+  }
+
+  if (function_exists('drush_get_context')) {
+    $command = drush_get_context('DRUSH_COMMAND');
+    if (is_array($command) && isset($command['command'])) {
+      return $command['command'];
+    }
+    if (is_string($command)) {
+      return $command;
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Read a Drush context value when available.
+ */
+function provision_get_context($key, $default = NULL) {
+  if (function_exists('drush_get_context')) {
+    return drush_get_context($key, $default);
+  }
+
+  return $default;
+}
+
+/**
+ * Wrapper around drush_core_call_rsync with a fallback for Drush 13+.
+ */
+function provision_core_call_rsync($source, $dest, array $options = array(), $verbose = TRUE, $simulate = FALSE) {
+  if (function_exists('drush_core_call_rsync')) {
+    return drush_core_call_rsync($source, $dest, $options, $verbose, $simulate);
+  }
+
+  $args = array('rsync', '-az');
+  if (!empty($options['relative'])) {
+    $args[] = '--relative';
+  }
+  if (!empty($options['keep-dirlinks'])) {
+    $args[] = '--keep-dirlinks';
+  }
+  if (!empty($options['omit-dir-times'])) {
+    $args[] = '--omit-dir-times';
+  }
+  if (!empty($options['delete'])) {
+    $args[] = '--delete';
+  }
+  if (!empty($options['exclude'])) {
+    $exclusions = is_array($options['exclude']) ? $options['exclude'] : array($options['exclude']);
+    foreach ($exclusions as $exclude) {
+      if ($exclude !== '') {
+        $args[] = '--exclude=' . escapeshellarg($exclude);
+      }
+    }
+  }
+  if (!$verbose) {
+    $args[] = '--quiet';
+  }
+  if ($simulate) {
+    $args[] = '--dry-run';
+  }
+
+  if (function_exists('drush_get_option')) {
+    $ssh_options = drush_get_option('ssh-options', '-o PasswordAuthentication=no');
+    if ($ssh_options !== NULL && $ssh_options !== '') {
+      $args[] = '-e';
+      $args[] = escapeshellarg('ssh ' . $ssh_options);
+    }
+  }
+
+  $args[] = $source;
+  $args[] = $dest;
+
+  return provision_shell_exec_raw(implode(' ', $args));
 }
 
 /**
@@ -505,10 +760,17 @@ function provision_process($command, $cwd = null, $label = 'Process', $env = arr
   // Make sure colors always come through
   $env['TERM'] = 'xterm';
 
-  $process = new \Symfony\Component\Process\Process($command, $cwd, $env);
+  if (is_array($command)) {
+    $command_log = implode(' ', array_map('escapeshellarg', $command));
+    $process = new \Symfony\Component\Process\Process($command, $cwd, $env);
+  }
+  else {
+    $command_log = $command;
+    $process = \Symfony\Component\Process\Process::fromShellCommandline($command, $cwd, $env);
+  }
   $process->setTimeout(NULL);
   if ($log_output) {
-    drush_log("[$label] $command", 'p_command');
+    drush_log("[$label] $command_log", 'p_command');
 
     $exit_code = $process->run(function ($type, $buffer) use ($log_type) {
       drush_log($buffer, $log_type);

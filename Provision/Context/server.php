@@ -146,15 +146,15 @@ class Provision_Context_server extends Provision_Context {
    *   Shell command to execute.
    *
    * @return
-   *   Same as drush_shell_exec(). Use drush_shell_exec_output() for standard
+   *   Same as provision_shell_exec(). Use provision_shell_exec_output() for standard
    *   out and error.
    */
   function shell_exec($command) {
     if (provision_is_local_host($this->remote_host)) {
-      return drush_shell_exec(escapeshellcmd($command));
+      return provision_shell_exec(escapeshellcmd($command));
     }
     else {
-      return drush_shell_exec('ssh ' . drush_get_option('ssh-options', '-o PasswordAuthentication=no') . ' %s %s', $this->script_user . '@' . $this->remote_host, escapeshellcmd($command));
+      return provision_shell_exec('ssh ' . drush_get_option('ssh-options', '-o PasswordAuthentication=no') . ' %s %s', $this->script_user . '@' . $this->remote_host, escapeshellcmd($command));
     }
   }
 
@@ -191,11 +191,11 @@ class Provision_Context_server extends Provision_Context {
           $options['delete'] = TRUE;
         }
 
-        if (drush_core_call_rsync(escapeshellarg($path), escapeshellarg($this->script_user . '@' . $this->remote_host . ':/'), $options, TRUE, FALSE)) {
+        if (provision_core_call_rsync(escapeshellarg($path), escapeshellarg($this->script_user . '@' . $this->remote_host . ':/'), $options, TRUE, FALSE)) {
           drush_log(dt('@path has been synced to remote server @remote_host.', array('@path' => $path, '@remote_host' => $this->remote_host)));
         }
         else {
-          drush_set_error('PROVISION_FILE_SYNC_FAILED', dt('@path could not be synced to remote server @remote_host. Changes might not be available until this has been done. (error: %msg)', array('@path' => $path, '@remote_host' => $this->remote_host, '%msg' => join("\n", drush_shell_exec_output()))));
+          drush_set_error('PROVISION_FILE_SYNC_FAILED', dt('@path could not be synced to remote server @remote_host. Changes might not be available until this has been done. (error: %msg)', array('@path' => $path, '@remote_host' => $this->remote_host, '%msg' => join("\n", provision_shell_exec_output()))));
         }
       }
       else { // File does not exist, remove it.
@@ -203,7 +203,7 @@ class Provision_Context_server extends Provision_Context {
           drush_log(dt('@path has been removed from remote server @remote_host.', array('@path' => $path, '@remote_host' => $this->remote_host)));
         }
         else {
-          drush_set_error('PROVISION_FILE_SYNC_FAILED', dt('@path could not be removed from remote server @remote_host. Changes might not be available until this has been done. (error: %msg)', array('@path' => $path, '@remote_host' => $this->remote_host, '%msg' => join("\n", drush_shell_exec_output()))));
+          drush_set_error('PROVISION_FILE_SYNC_FAILED', dt('@path could not be removed from remote server @remote_host. Changes might not be available until this has been done. (error: %msg)', array('@path' => $path, '@remote_host' => $this->remote_host, '%msg' => join("\n", provision_shell_exec_output()))));
         }
       }
     }
@@ -233,7 +233,7 @@ class Provision_Context_server extends Provision_Context {
           $options['delete'] = TRUE;
         }
 
-        if (drush_core_call_rsync(escapeshellarg($this->script_user . '@' . $this->remote_host . ':/') . $path, $path, $options, TRUE, FALSE)) {
+        if (provision_core_call_rsync(escapeshellarg($this->script_user . '@' . $this->remote_host . ':/') . $path, $path, $options, TRUE, FALSE)) {
           drush_log(dt('@path has been fetched from remote server @remote_host.', array(
             '@path' => $path,
             '@remote_host' => $this->remote_host))
@@ -244,7 +244,7 @@ class Provision_Context_server extends Provision_Context {
             ' Changes might not be available until this has been done. (error: %msg)', array(
               '@path' => $path,
               '@remote_host' => $this->remote_host,
-              '%msg' => join("\n", drush_shell_exec_output())))
+              '%msg' => join("\n", provision_shell_exec_output())))
           );
         }
       }
@@ -252,4 +252,3 @@ class Provision_Context_server extends Provision_Context {
   }
 
 }
-

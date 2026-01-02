@@ -293,7 +293,7 @@ class Provision_Service extends Provision_ChainedState {
             ' Changes might not be available until this has been done. (error: %msg)', array(
             '%service' => $service,
             '%server' => $this->server->remote_host,
-            '%msg' => join("\n", drush_shell_exec_output()))), 'warning');
+            '%msg' => join("\n", provision_shell_exec_output()))), 'warning');
         }
       }
     }

@@ -33,6 +33,6 @@ class Provision_Config_Drushrc_Alias extends Provision_Config_Drushrc {
   }
 
   function filename() {
-    return drush_server_home() . '/.drush/' . $this->data['aliasname'] . '.alias.drushrc.php';
+    return provision_drush_server_home() . '/.drush/' . $this->data['aliasname'] . '.alias.drushrc.php';
   }
 }
