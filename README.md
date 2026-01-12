@@ -1,37 +1,19 @@
-# The Aegir system
+# Aegir Provision D11
 
-The Aegir hosting system allows developers and site administrators to
-automate many of the common tasks associated with deploying and
-managing large websites. Aegir makes it easy to install, upgrade,
-deploy, and backup an entire network of Drupal sites.
+This directory contains the Drush 13 extension that implements the Provision backend for Drupal 10+ platforms (PHP 8.3+). It is designed to be installed as a Composer package in a Drupal project and invoked by the Aegir frontend (aegir-hosting) via Drush commands.
 
-The most up to date information regarding the project and its goals
-can be found on the Aegir website and the documentation pages:
+Key points:
+- Drush 13 command surface: `provision-*` commands used by the hosting frontend.
+- Contexts are stored as Drush YAML aliases under `~/.drush/sites`.
+- Supported services: Apache HTTP + SSL (self-signed, LetsEncrypt, Cloudflare) and MySQL 8.0+.
+- Platforms are Composer-based Drupal 10+ codebases with `/web` (or other docroot) layouts.
 
-   http://aegirproject.org
-   http://docs.aegirproject.org/
+Architecture and integration details:
+- `../architecture/provision-d11.md`
 
-This is the backend of the Aegir hosting system. The front end
-(hostmaster) and the backend (provision) are designed to be run
-separately, and each front end is able to drive multiple back
-ends. Aegir can install itself with the software you have already
-downloaded alongside this readme file.
+Install (example):
+```
+composer require aegir/provision-d11
+```
 
-To install Aegir, you should follow the instructions at:
-
-   http://docs.aegirproject.org/en/3.x/install/
-
-To upgrade Aegir, follow the instructions at:
-
-   http://docs.aegirproject.org/en/3.x/install/upgrade
-
-If you have further questions or are having trouble with Aegir,
-check out how to reach our community at:
-
-   http://docs.aegirproject.org/en/3.x/community/
-
-Other documentation for developers is also available at:
-
-   http://docs.aegirproject.org/en/3.x/extend/
-
-
+The `drush.services.yml` file registers the command classes automatically when this package is installed.

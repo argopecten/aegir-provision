@@ -1,37 +1,24 @@
 {
-    "name": "aegir/provision",
-    "description": "Drush commands powering the back-end of Aegir",
-    "type": "drupal-drush",
-    "license": "GPL-2.0-or-later",
-    "authors": [
-        {
-            "name":      "Aegir maintainers",
-            "homepage":  "http://docs.aegirproject.org/en/3.x/community/core-team/"
-        }
-    ],
-    "support": {
-        "issues": "https://www.drupal.org/project/issues/provision",
-        "docs": "http://docs.aegirproject.org/"
-    },
-    "require": {
-        "symfony/process": "^3.4"
-    },
-    "config": {
-        "sort-packages": true,
-        "platform": {
-            "php": "7.0.8"
-        }
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
-    "autoload": {
-        "psr-0": {
-            "Provision_": [
-                "Provision"
-            ]
-        }
-    },
-    "require-dev": {
-        "overtrue/phplint": "^1.2"
+  "name": "aegir/provision-d11",
+  "description": "Aegir Provision Drush 13 extension (Drupal 10+ platforms)",
+  "type": "drupal-drush",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": "^8.3",
+    "drush/drush": "^13.0",
+    "symfony/process": "^6.4",
+    "symfony/yaml": "^6.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Aegir\\ProvisionD11\\": "src/"
     }
+  },
+  "extra": {
+    "drush": {
+      "services": {
+        "drush.services.yml": "^13"
+      }
+    }
+  }
 }

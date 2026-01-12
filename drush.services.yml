@@ -1,0 +1,5 @@
+services:
+  aegir_provision_d11.commands:
+    class: Aegir\ProvisionD11\Commands\ProvisionCommands
+    tags:
+      - { name: drush.command }
