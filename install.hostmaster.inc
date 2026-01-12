@@ -51,16 +51,7 @@ function drush_provision_hostmaster_install_validate($site = NULL) {
   drush_set_default('client_name', 'admin');
   $aegir_db_user = drush_get_option('aegir_db_user');
 
-  // Generate "makefile" message only if there is one set.
   $root = drush_get_option(array('r', 'root'));
-  if (is_dir($root) && !drush_get_option('makefile', FALSE)) {
-    // Don't assume we know the makefile used to build an existing platform
-    $makefile_msg = '';
-  }
-  else {
-    drush_set_default('makefile', dirname(__FILE__) . '/aegir.make');
-    $makefile_msg = dt("Aegir makefile: !makefile\n", array('!makefile' => drush_get_option('makefile')));
-  }
 
   // Generate "profile" message only if there is one set.
   if (!drush_get_option('profile', FALSE)) {
@@ -133,7 +124,6 @@ The following settings will be used:
  Aegir version: !version
  Aegir platform path: !root
  Admin email: !email
- !makefile
  !profile',
   array(
     '!site' => $site,
@@ -149,7 +139,6 @@ The following settings will be used:
     '!db_port' => drush_get_option('aegir_db_port'),
     '!version' => drush_get_option('version'),
     '!root' => $root,
-    '!makefile' => $makefile_msg,
     '!profile' => $profile_msg,
     '!email' => drush_get_option('client_email'),
   )));
@@ -234,17 +223,8 @@ function drush_provision_hostmaster_install($site = NULL) {
     'server' => $server,
     'web_server' => $server,
     'root' => $platform,
-    'makefile' => drush_get_option('makefile'),
   ));
-  // propagate working-copy args downward
-  $options = array();
-  if (drush_get_option('working-copy')) {
-    $options['working-copy'] = 1;
-
-    # Don't rewrite module info files if using working-copy.
-    $options['no-gitinfofile'] = 1;
-  }
-  provision_backend_invoke($platform_name, 'provision-verify', array(), $options);
+  provision_backend_invoke($platform_name, 'provision-verify');
 
   // exit if an error has occured.
   if (drush_get_error()) {

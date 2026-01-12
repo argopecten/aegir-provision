@@ -22,7 +22,7 @@ function drush_provision_hostmaster_migrate_validate($site, $platform) {
 This command will operate the following changes in your system:
 
 1. verify the server and the hostmaster site (provision-verify)
-2. verify the new platform (which will download it if missing)
+2. verify the new platform (it must already exist)
 3. stop the queue (hosting-pause)
 4. attempt a migration to the new platform (provision-migrate)
 5. start the queue (hosting-resume)
@@ -62,14 +62,8 @@ We are making the following assumptions:
       'server' => '@server_master',
       'web_server' => '@server_master',
       'root' => $platform,
-      'makefile' => drush_get_option('makefile', dirname(__FILE__) . '/aegir.make'),
     ));
-    // propagate working-copy args downward
-    $options = array();
-    if (drush_get_option('working-copy')) {
-      $options['working-copy'] = 1;
-    }
-    provision_backend_invoke($new_platform, 'provision-verify', array(), $options);
+    provision_backend_invoke($new_platform, 'provision-verify');
     drush_set_option('new_platform', $new_platform);
     // exit if an error has occured.
     if (drush_get_error()) {
@@ -128,7 +122,6 @@ We are making the following assumptions:
       'server' => $server,
       'web_server' => $server,
       'root' => $platform,
-      'makefile' => drush_get_option('makefile', dirname(__FILE__) . '/aegir.make'),
     ));
     provision_backend_invoke($new_platform, 'provision-verify');
     drush_set_option('new_platform', $new_platform);
@@ -228,4 +221,3 @@ function drush_provision_post_hostmaster_migrate($site, $platform) {
   $server = '@server_master';
   provision_backend_invoke('@hostmaster', 'hosting-task', array("$server", 'verify'), array('force' => TRUE));
 }
-

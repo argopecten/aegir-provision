@@ -213,10 +213,6 @@ function provision_drush_command() {
       'drush @platform provision-verify' => 'Verify the platform as defined by the platform Drush alias generated with provision-save.',
     ),
     'options' => array(
-      'working-copy' => array(
-        'description' => dt('Keep VCS files when building the a platform using Drush make.'),
-        'hidden' => TRUE,
-      ),
       'override_slave_authority' => array(
         'description' => dt('Push the site specific files directory to a slave. This overrides the slaves authority.'),
       ),
@@ -317,8 +313,6 @@ function provision_drush_command() {
     ),
     'options' => array(
       'http_service_type' => dt('Webserver type to configure (default: %webserver)', array('%webserver' => 'apache')),
-      'makefile' => dt('The makefile used to create the hostmaster platform (default: %makefile)', array('%makefile' => dirname(__FILE__). '/aegir.make')),
-      'working-copy' => dt('Keep VCS files when building the hostmaster platform using Drush make.')
     ),
   );
 
@@ -338,7 +332,6 @@ function provision_drush_command() {
      'aegir_db_grant_all_hosts' => dt('Allow connection from arbitrary web hosts. (Default: FALSE)'),
      'client_email' => dt('Email of the first client to create in the frontend'),
      'client_name' => dt('Name of the first client to create in the frontend (default: %user)', array('%user' => 'admin')),
-     'makefile' => dt('The makefile used to create the hostmaster platform (default: %makefile)', array('%makefile' => dirname(__FILE__). '/aegir.make')),
      'aegir_host' => dt('Fully qualified domain name of the local server (default: %fqdn)', array('%fqdn' => provision_fqdn())),
      'script_user' => dt('User to run the backend as (default: %user)', array('%user' => provision_current_user())),
      'web_group' => dt('Group the webserver is running as (default: %group)', array('%group' => _provision_default_web_group())),
@@ -347,7 +340,6 @@ function provision_drush_command() {
      'aegir_root' => dt('Install aegir in this home directory (default: %home). Do not change unless you know what you are doing.', array('%home' => drush_server_home())),
      'root' => dt('Install the frontend in this directory (default: %home/hostmaster-%version).', array('%home' => drush_server_home(), '%version' => provision_version())),
      'backend-only' => dt('Install just the backend, and not the frontend UI.'),
-     'working-copy' => dt('Keep VCS files when building the hostmaster platform using Drush make.')
      ),
   );
 
