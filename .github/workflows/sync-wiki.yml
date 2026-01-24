@@ -1,0 +1,43 @@
+name: Sync Documentation to Wiki
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - dev/d11-new
+    paths:
+      - 'doc/**'
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clone wiki repository
+        run: |
+          git clone https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/argopecten/aegir-provision.wiki.git wiki
+          
+      - name: Copy documentation files
+        run: |
+          cp doc/*.md wiki/
+          
+      - name: Commit and push to wiki
+        run: |
+          cd wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Sync documentation from main repository
+            
+            Auto-synced from commit ${{ github.sha }}"
+            git push
+          fi
