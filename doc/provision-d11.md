@@ -246,6 +246,41 @@ Apache configuration features:
 - Site enable/disable moves vhosts between active and disabled directories
 - Automatic restart/reload commands after configuration changes
 
+**Apache vhost example** (generated from template):
+```apache
+<VirtualHost *:80>
+  ServerName example.com
+  DocumentRoot /var/aegir/platforms/drupal-11/web
+  
+  <Directory /var/aegir/platforms/drupal-11/web>
+    Options -Indexes +FollowSymLinks
+    AllowOverride All
+    Require all granted
+  </Directory>
+  
+  # PHP-FPM integration
+  <FilesMatch \.php$>
+    SetHandler "proxy:unix:/run/php/php8.3-fpm-example.sock|fcgi://localhost"
+  </FilesMatch>
+  
+  ErrorLog ${APACHE_LOG_DIR}/example.com-error.log
+  CustomLog ${APACHE_LOG_DIR}/example.com-access.log combined
+</VirtualHost>
+```
+
+**Config Output Paths** (relative to `server.config_path`):
+```
+{config_path}/apache/
+├── vhost.d/            # HTTP vhosts (port 80)
+│   ├── example.com.conf
+│   └── platform_d11.conf
+├── vhost_ssl.d/        # HTTPS vhosts (port 443)
+│   └── example.com.conf
+├── disabled.d/         # Disabled site configs
+└── platform.d/         # Platform-level includes
+    └── platform_d11.conf
+```
+
 ### Database service (MySQL/MariaDB)
 Current implementation:
 - Service class: `Aegir\ProvisionD11\Service\Db\MySqlService`
@@ -260,6 +295,21 @@ Core behaviors:
 - `dropUser()`: Drops MySQL user
 - `dump()`: Creates mysqldump backup (optional gzip compression)
 - `import()`: Imports SQL dump file into database
+
+**Example MySQL operations**:
+```php
+// Database credentials from context
+$db_name = 'example_com';
+$db_user = 'example_com_user';
+$db_passwd = 'generated_password';
+
+// Operations executed via CLI
+CREATE DATABASE IF NOT EXISTS `example_com` 
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE USER IF NOT EXISTS 'example_com_user'@'localhost' 
+  IDENTIFIED BY 'generated_password';
+GRANT ALL PRIVILEGES ON `example_com`.* TO 'example_com_user'@'localhost';
+```
 
 Code reference: `src/Service/Db/MySqlService.php`
 
@@ -279,6 +329,17 @@ Current implementation:
 - Context types handled: server, platform, site
 - Service coordination: ApacheService, MySqlService, SettingsWriter, SslManager
 
+Task flow example (site install):
+1. Load site context from ContextRepository
+2. Resolve platform and server contexts
+3. Create database and user via MySqlService
+4. Grant database privileges
+5. Generate Drupal settings.php via SettingsWriter
+6. Configure Apache vhost via ApacheService
+7. Run `drush site:install` command
+8. Enable site (activate vhost)
+9. Save updated context data
+
 Task flow example (site verify):
 1. Load site context from ContextRepository
 2. Resolve platform and server contexts
@@ -291,11 +352,14 @@ Task flow example (site verify):
 Key workflows:
 - **Verify**: Validate and configure server/platform/site
 - **Install**: Create new Drupal site with database and configuration
-- **Backup**: Create mysqldump + tarball of site files
+- **Backup**: Create mysqldump + tarball of site files (stored in `{backup_path}/backups/`)
 - **Restore**: Restore site from backup archive
-- **Migrate**: Move site to different platform
-- **Clone**: Duplicate site to new context
+- **Deploy**: Import backup into existing site (replaces database and files)
+- **Migrate**: Move site to different platform (updates context and regenerates configs)
+- **Clone**: Duplicate site to new context (creates new database and copies files)
 - **Enable/Disable**: Activate or deactivate site vhost
+- **Lock/Unlock**: Add maintenance mode to site
+- **Delete**: Remove site, optionally delete database and files
 
 Code reference: `src/Provision/ProvisionManager.php` (773 lines of orchestration logic)
 
@@ -343,13 +407,32 @@ Features:
 - HTTPS redirect support
 - Certificate and key file management
 
+**Certificate Paths** (relative to `server.config_path`):
+```
+{config_path}/ssl/
+├── example.com/
+│   ├── cert.pem       # Certificate
+│   ├── key.pem        # Private key
+│   ├── chain.pem      # Certificate chain
+│   └── fullchain.pem  # Full certificate chain
+```
+
+**SSL Configuration Example**:
+```yaml
+# Site context with SSL enabled
+ssl_enabled: true
+ssl_redirect: true
+ssl_cert_path: /var/aegir/config/ssl/example.com/cert.pem
+ssl_key_path: /var/aegir/config/ssl/example.com/key.pem
+```
+
 Code reference: `src/Service/Ssl/SslManager.php`
 
 Modern approach:
 - Service-based architecture with dependency injection
 - ProcessRunner for openssl command execution
 - Template-based SSL vhost configuration
-- Proper file permissions and ownership for certificates
+- Proper file permissions and ownership for certificates (mode 0600 for private keys)
 
 ## Drush command surface
 Provision defines Drush 13 commands using PHP 8 attributes in `src/Commands/ProvisionCommands.php`.
@@ -480,6 +563,50 @@ Settings generation:
 - File permissions (0640 for security)
 - Site-specific configuration
 
+**Generated settings.php example**:
+```php
+<?php
+/**
+ * Aegir-generated settings.php
+ * DO NOT EDIT - Changes will be overwritten on next verify
+ */
+
+// Database configuration
+$databases['default']['default'] = [
+  'driver' => 'mysql',
+  'database' => 'example_com',
+  'username' => 'example_com_user',
+  'password' => 'generated_password',
+  'host' => 'localhost',
+  'port' => 3306,
+  'prefix' => '',
+  'collation' => 'utf8mb4_general_ci',
+];
+
+// File paths
+$settings['file_public_path'] = 'sites/example.com/files';
+$settings['file_private_path'] = '/var/aegir/private/example.com';
+$settings['file_temp_path'] = '/tmp';
+
+// Trusted hosts
+$settings['trusted_host_patterns'] = [
+  '^example\\.com$',
+];
+
+// Config sync
+$settings['config_sync_directory'] = '../config/sync';
+
+// Aegir integration
+$_SERVER['db_type'] = 'mysql';
+$_SERVER['db_name'] = 'example_com';
+$_SERVER['db_user'] = 'example_com_user';
+
+// Load local settings (not managed by Aegir)
+if (file_exists(__DIR__ . '/local.settings.php')) {
+  include __DIR__ . '/local.settings.php';
+}
+```
+
 Platform verification:
 - Validates platform root path
 - Ensures Apache configuration
@@ -583,3 +710,57 @@ Legacy Provision used procedural PHP with hooks (`provision.inc`, `Provision_*` 
 - Ensure SSH and filesystem permissions are aligned with webserver group and Aegir user.
 - SSL certificate management should respect external certificate managers.
 - Database credential handling should avoid logging secrets and use Drush options where applicable.
+
+### Best Practices
+
+**Context Management**:
+- Always use `provision-save` to modify contexts - never edit YAML files directly
+- Run `provision-verify` after making context changes
+- Keep context backups before major changes
+- Use descriptive context names (e.g., `@platform_d11_2024` not `@platform1`)
+
+**File Permissions**:
+```
+# Server config directories
+0750  aegir:aegir      /var/aegir/config/
+0700  aegir:aegir      /var/aegir/config/ssl/
+
+# Platform and site paths
+0755  aegir:www-data   /var/aegir/platforms/
+0770  aegir:www-data   /var/aegir/platforms/*/sites/*/files/
+0640  aegir:www-data   /var/aegir/platforms/*/sites/*/settings.php
+
+# Generated Apache configs
+0644  aegir:www-data   /var/aegir/config/apache/vhost.d/*.conf
+```
+
+**Operations Workflow**:
+1. Test on staging platform before production
+2. Always backup before migrations: `drush provision-backup @site`
+3. Monitor Apache/MySQL logs during operations
+4. Verify configurations before enabling sites
+5. Use `--dry-run` when available (future feature)
+
+**Security Hardening**:
+- Keep context YAML files secure (permissions 0600)
+- Use SSL for all production sites
+- Rotate database passwords regularly
+- Review generated Apache configs for security headers
+- Monitor SSL certificate expiry dates
+- Use strong database passwords (generated automatically)
+
+**Anti-Patterns to Avoid**:
+- ❌ Don't modify context YAML files directly - use ContextRepository
+- ❌ Don't hardcode paths - use ConfigPaths service
+- ❌ Don't execute shell commands directly - use ProcessRunner or service methods
+- ❌ Don't ignore file permissions - use Filesystem service
+- ❌ Don't skip verification after changes
+- ❌ Don't run commands as root
+
+**Troubleshooting**:
+- Check Apache logs: `/var/log/apache2/{site}-error.log`
+- Verify MySQL connectivity: `mysql -u {user} -p`
+- Test Apache config: `apache2ctl -t`
+- Review generated configs in `{config_path}/apache/`
+- Check context data: `drush site:alias @site --full`
+- Validate file permissions: `ls -la {platform}/sites/{uri}/`
