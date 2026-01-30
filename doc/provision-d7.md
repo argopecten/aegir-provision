@@ -1,5 +1,10 @@
 # Aegir Provision (D7) Architecture
 
+> **⚠️ HISTORICAL REFERENCE ONLY**  
+> This document describes the legacy Drupal 7 Provision architecture. **None of these files exist in the current D11 codebase.**  
+> This documentation is preserved for historical context and understanding the evolution to the D11 implementation.  
+> For current D11 architecture, see [provision-d11.md](provision-d11.md).
+
 ## Scope
 This document describes the Aegir Provision backend found in `aegir-provision`. It covers core functionality, frontend integration points, context modeling, service types, webserver/database/SSL support, Drush extensions, supported Drupal versions, and runtime dependencies.
 

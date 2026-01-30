@@ -31,12 +31,12 @@ Primary components:
 - **Drush command surface**: `provision.drush.inc`, `parse.backend.inc`
 
 ## Drush extension layout (vendor)
-Provision is delivered as a Composer package that registers Drush 13 commands directly from `vendor/`, without requiring a Drupal module.
+Provision is delivered as a Composer package that registers Drush commands from `vendor/`, without requiring a Drupal module.
 
 Actual package layout:
 - `composer.json` (type: `drupal-drush`)
-- `drush.services.yml` (registers Drush 13 command classes)
-- `src/Commands/ProvisionCommands.php` (Drush 13 command definitions using PHP 8.3 attributes)
+- `drush.services.yml` (registers command class - Drush 12 pattern, deprecated in 13.7+ but functional)
+- `src/Commands/ProvisionCommands.php` (command definitions using deprecated DrushCommands base class and #[CLI\Command] attributes)
 - `src/Core/*` (core infrastructure: Context, ContextRepository, ContextType, AliasStore, Filesystem, ProcessRunner, ConfigPaths, PlatformRoot)
 - `src/Provision/ProvisionManager.php` (main orchestration and task execution)
 - `src/Service/*` (service implementations: Db/MySqlService, Http/ApacheService, Drupal/SettingsWriter, Ssl/SslManager)
@@ -233,7 +233,7 @@ Code references:
 - Drupal service: `src/Service/Drupal/SettingsWriter.php` (Drupal settings.php generation)
 
 ### HTTP service (Apache)
-Current implementation supports Apache only:
+**Current implementation: Apache only** (Nginx, Cluster, Pack services from D7 not implemented)
 - Service class: `Aegir\ProvisionD11\Service\Http\ApacheService`
 - Creates Apache configuration directory structure: `pre.d`, `post.d`, `platform.d`, `vhost.d`, `vhost_ssl.d`, `disabled.d`
 - Generates vhost configuration from templates in `resources/templates/apache/`
@@ -672,9 +672,9 @@ Code organization:
 
 ### Completed (✅)
 - **Core architecture**: Modern PHP 8.3+ class-based design with strict types
-- **Drush 13 integration**: Full command system using PHP 8 attributes
+- **Drush compatibility**: Functional command system (uses Drush 12 patterns, see note below)
 - **Context management**: Context, ContextRepository, ContextType, AliasStore
-- **YAML alias storage**: Drush 13 site aliases in `~/.drush/sites/aegir/`
+- **YAML alias storage**: Drush site aliases in `~/.drush/sites/aegir/`
 - **Service architecture**: ApacheService, MySqlService, SettingsWriter, SslManager
 - **Infrastructure**: Filesystem, ProcessRunner, ConfigPaths, PlatformRoot
 - **Template system**: TemplateRenderer with PHP template support
@@ -685,20 +685,65 @@ Code organization:
 - **SSL/TLS**: Certificate management through SslManager
 - **Platform detection**: Auto-detect `/web`, `/docroot`, `/html` Composer layouts
 
-### In progress or planned (🔄)
-- **Nginx support**: Nginx service implementation (Apache only currently)
-- **Drupal 11 bootstrap**: Direct Drupal API integration for site install/import
-- **Multi-server**: SSH/rsync integration for remote server management
-- **Backup compression**: Advanced backup formats and compression options
-- **Migration tools**: Enhanced platform migration workflows
+### High Priority for Modernization (⚠️ TODO)
+
+**CRITICAL: Drush 13.7+ Migration Required**
+The codebase currently uses deprecated Drush 12 patterns. This migration is essential for long-term maintainability and compliance with modern Drush standards (https://www.drush.org/13.x/commands/).
+
+**Migration Tasks**:
+1. **Command Structure**:
+   - Split `ProvisionCommands` into separate command classes (one per command)
+   - Each command in its own file: `ProvisionSaveCommand.php`, `ProvisionVerifyCommand.php`, etc.
+   - Move from `src/Commands/` to proper namespace structure
+
+2. **Base Class & Attributes**:
+   - Replace `extends DrushCommands` with `extends Symfony\Component\Console\Command\Command`
+   - Replace `#[CLI\Command(name: '...')]` with `#[AsCommand(name: '...', aliases: [...])]`
+   - Move options/arguments from attributes to `configure()` method
+
+3. **Dependency Injection**:
+   - Add `use AutowireTrait` to command classes
+   - Implement constructor-based dependency injection
+   - Remove manual `new ProvisionManager(...)` instantiation in every method
+
+4. **Service Registration**:
+   - Remove `drush.services.yml` file
+   - Rely on PSR-4 auto-discovery (commands in `\Drush\Commands` namespace relative to PSR-4 base)
+   - Update composer.json if needed for proper namespace mapping
+
+5. **Execution Methods**:
+   - Move logic from command methods to `execute(InputInterface $input, OutputInterface $output)` method
+   - Implement `configure()` for options/arguments
+   - Optional: implement `interact()` for user interaction
+
+**Additional High Priority Tasks**:
 - **Hook system**: Extension points for custom service implementations
 - **Testing**: Automated test suite for core functionality
-- **Documentation**: Additional guides for common workflows
+- **Documentation**: Update all examples to show modern Drush 13.7+ patterns
+
+### Optional/Low Priority Features (📋)
+- **Nginx support**: Nginx service implementation (Apache-only currently sufficient)
+- **Multi-server**: SSH/rsync integration for remote operations (local-only currently)
+- **Cluster/Pack services**: Multi-webserver configurations (enterprise feature)
+- **Backup compression**: Advanced backup formats and compression options
+- **PostgreSQL/MongoDB**: Alternative database backends (MySQL sufficient currently)
+
+### Known Technical Debt
+**⚠️ Deprecated Drush Patterns** (see [High Priority for Modernization](#high-priority-for-modernization-️-todo) above):
+
+The codebase uses Drush 12 command patterns which are deprecated in Drush 13.7+ but remain functional:
+- `DrushCommands` base class → should be `Symfony\Component\Console\Command\Command`
+- `drush.services.yml` registration → should use PSR-4 auto-discovery
+- `#[CLI\Command]` attribute → should be `#[AsCommand]`
+- Manual dependency instantiation → should use AutowireTrait
+- Multi-command class pattern → should be one class per command
+
+**Impact**: These patterns work correctly but violate modern Drush 13.7+ standards (https://www.drush.org/13.x/commands/). Migration to modern patterns is tracked as high-priority TODO above.
 
 ### Architecture differences from legacy Provision
 Legacy Provision used procedural PHP with hooks (`provision.inc`, `Provision_*` classes). Current implementation uses:
 - Modern OOP with strict typing and dependency injection
-- Drush 13 attributes instead of `hook_drush_command()`
+- Drush command classes instead of `hook_drush_command()`
 - YAML aliases instead of PHP `.alias.drushrc.php` files
 - Composer PSR-4 autoloading instead of manual includes
 - Symfony components for process execution and filesystem operations

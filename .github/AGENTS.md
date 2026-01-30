@@ -37,11 +37,124 @@ This is the **Backend Component** - a standalone Git repository that is also a s
 5. 🔄 **Infrastructure first** - Prioritize correct infrastructure operations over migrations
 6. 🔒 **Idempotent commands** - All provision commands must be safe to run multiple times
 
+## ⚠️ CRITICAL ARCHITECTURE UNDERSTANDING
+
+### This is a Standalone Drush Command Package (NOT a Drupal Module)
+
+**What this means**:
+- ✅ Installed as a Composer dependency: `composer require argopecten/aegir-provision`
+- ✅ Commands run **outside** of Drupal bootstrap (can operate on multiple sites)
+- ❌ **CANNOT** use Drupal APIs, entities, hooks, or database abstraction
+- ❌ **CANNOT** access Drupal's configuration, state, or cache systems
+- ❌ **CANNOT** be enabled/disabled like a Drupal module
+
+**⚠️ HIGH PRIORITY TODO - Drush 13.7+ Migration**:
+The codebase currently uses **deprecated Drush 12 patterns** that need migration:
+- ❌ `DrushCommands` base class → should extend `Symfony\Component\Console\Command\Command`
+- ❌ `drush.services.yml` registration → should use PSR-4 auto-discovery with `AutowireTrait`
+- ❌ `#[CLI\Command]` attribute → should use `#[AsCommand]`
+- ❌ Multi-command class → should be one class per command
+- ❌ Manual dependency instantiation → should use constructor injection via `AutowireTrait`
+
+See [README.md](../README.md) for complete migration roadmap.
+
+**Why this architecture exists**:
+- Provision performs **server-level operations** (Apache config, MySQL admin, filesystem)
+- Must operate **before** Drupal sites exist (e.g., provision-install creates the site)
+- Needs to manage **multiple Drupal sites** from a single command context
+- Requires **root/sudo privileges** for webserver and database operations
+
+**Common mistakes to AVOID**:
+- ❌ DO NOT try to use `\Drupal::service()`, `\Drupal::database()`, or entity API
+- ❌ DO NOT expect Drupal module hooks to work
+- ❌ DO NOT use `drush.services.yml` like a Drupal module's `*.services.yml`
+- ❌ DO NOT bootstrap Drupal unless explicitly invoking commands on a specific site
+- ❌ DO NOT assume Drupal is available - commands can run on bare servers
+
+**What you CAN do**:
+- ✅ Use Drush commands to interact with Drupal sites: `drush @site status`
+- ✅ Use Symfony components (Process, Filesystem, Yaml)
+- ✅ Execute shell commands via ProcessRunner for system operations
+- ✅ Read/write YAML alias files in `~/.drush/sites/`
+- ✅ Generate configuration files (Apache vhosts, settings.php)
+
+### Current Command Registration (DEPRECATED PATTERN - TODO)
+
+**⚠️ Current implementation uses deprecated Drush 12 pattern**:
+```yaml
+# drush.services.yml - DEPRECATED in Drush 13.7+
+services:
+  aegir_provision_d11.commands:
+    class: Aegir\ProvisionD11\Commands\ProvisionCommands
+    tags:
+      - { name: drush.command }
+```
+
+This pattern is **deprecated in Drush 13.7+** but still functional.
+
+**Target pattern (Drush 13.7+ standard)**:
+- Remove `drush.services.yml` entirely
+- Use PSR-4 auto-discovery: commands in `\Drush\Commands` namespace
+- Use `AutowireTrait` for dependency injection via constructor
+- Each command in separate class file
+- Extend `Symfony\Component\Console\Command\Command`
+- Use `#[AsCommand]` attribute instead of `#[CLI\Command]`
+
+See official docs: https://www.drush.org/13.x/commands/
+
+## 📝 Documentation Update Guidelines
+
+**When to update documentation**:
+- ✅ User explicitly requests: "update docs", "document this", "update README"
+- ✅ After significant architectural changes that affect usage
+- ✅ When adding new commands or changing command signatures
+- ❌ After routine bug fixes or internal refactoring
+- ❌ After every small code change
+
+**Files to update** (when requested):
+1. **README.md** - Project overview, quick start, installation
+2. **doc/Home.md** - User-friendly guide with examples
+3. **doc/provision-d11.md** - Complete technical architecture
+4. **.github/AI-INSTRUCTIONS.md** - This file (technical details for AI agents)
+5. **.github/AGENTS.md** - Quick reference (you're reading it now)
+
+**How to update docs**:
+1. Read existing docs first to understand structure and tone
+2. Update all related sections consistently (don't leave stale info)
+3. Preserve examples but update paths/commands if changed
+4. Keep README.md concise - detailed info goes in doc/
+5. Use absolute paths in examples: `/var/aegir/platforms/drupal-11`
+6. Test commands before documenting them
+7. Update version numbers, PHP requirements, dependency versions
+
+**Documentation sync workflow**:
+- doc/*.md files are **automatically synced to GitHub Wiki** via `.github/workflows/sync-wiki.yml`
+- Changes to doc/ on push to main/master/dev branches trigger wiki sync
+- Never manually edit wiki - always edit doc/ in the repo
+
+**Style guidelines**:
+- Use concrete examples: `drush provision-install @example.com`
+- Include full context data: `--data='{"uri":"example.com","platform":"platform_d11"}'`
+- Explain **why** not just **how** (architecture decisions)
+- Keep AI-INSTRUCTIONS.md technical and comprehensive
+- Keep AGENTS.md concise and scannable
+- Keep Home.md user-friendly for humans
+
 ## Essential Documentation
 
 **Start here for this component**:
 - **[AI-INSTRUCTIONS.md](AI-INSTRUCTIONS.md)** - Complete technical guide for this component (990+ lines)
 - **[doc/Home.md](../doc/Home.md)** - User-facing documentation
+
+**Drush 13 Official Documentation** (AUTHORITATIVE SOURCE):
+- **https://www.drush.org/13.x/** - Complete Drush 13 reference
+- When working with Drush commands, attributes, or APIs, always analyze and incorporate guidance from this official documentation
+- Key sections:
+  - Command API: https://www.drush.org/13.x/commands/
+  - Attributes: https://www.drush.org/13.x/commands/#attributes
+  - Dependency Injection: https://www.drush.org/13.x/dependency-injection/
+  - Site Aliases: https://www.drush.org/13.x/site-aliases/
+  - Creating Commands: https://www.drush.org/13.x/commands/#creating-custom-drush-commands
 
 **For cross-component work**:
 - **[Parent Repo AI Guide](../../../../.github/AI-AGENT-GUIDE.md)** - Navigation across all 4 repositories

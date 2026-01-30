@@ -8,6 +8,295 @@
 
 **Architecture**: Context-driven orchestration system with service abstractions for HTTP, database, and file operations.
 
+## 📚 External Documentation References
+
+### Drush 13 Official Documentation (AUTHORITATIVE SOURCE)
+
+**URL**: https://www.drush.org/13.x/
+
+This is the **authoritative source** for all Drush 13 functionality. When working with Drush commands, APIs, attributes, or any Drush-related code in this project, you MUST analyze and incorporate guidance from the official Drush documentation.
+
+**Critical sections to reference**:
+
+1. **Creating Custom Commands**: https://www.drush.org/13.x/commands/#creating-custom-drush-commands
+   - **CRITICAL**: Modern Drush 13.7+ uses Symfony Console commands with `#[AsCommand]` attribute
+   - **DEPRECATED**: `DrushCommands` base class and `#[CLI\Command]` attributes (Drush 12 patterns)
+   - Command class structure: one class per command
+   - Return values: `Command::SUCCESS`, `Command::FAILURE`, `Command::INVALID`
+
+2. **Dependency Injection**: https://www.drush.org/13.x/dependency-injection/
+   - **CRITICAL**: Modern Drush 13+ uses `AutowireTrait` for constructor-based injection
+   - **DEPRECATED**: `drush.services.yml` approach (Drush 11 pattern, still works but not recommended)
+   - PSR-4 auto-discovery replaces services.yml registration
+   - Available Drush services auto-injected via type hints
+
+3. **Site Aliases**: https://www.drush.org/13.x/site-aliases/
+   - YAML alias file format
+   - Alias discovery paths
+   - Remote execution via aliases
+   - Custom alias properties
+
+4. **Command API**: https://www.drush.org/13.x/commands/
+   - Available attributes and their parameters
+   - Input/output handling
+   - Progress indicators
+   - Interactive prompts
+
+5. **Output Formatting**: https://www.drush.org/13.x/output-formats-filters/
+   - Table formatting
+   - JSON/YAML output
+   - Custom formatters
+
+6. **Bootstrap Levels**: https://www.drush.org/13.x/bootstrap/
+   - When and how to bootstrap Drupal
+   - Running commands without bootstrap
+   - Remote site execution
+
+**When to consult Drush documentation**:
+- ✅ Before adding new command attributes or options
+- ✅ When implementing service injection in commands
+- ✅ When working with site alias YAML files
+- ✅ When deciding whether to bootstrap Drupal
+- ✅ When implementing output formatting or progress indicators
+- ✅ When troubleshooting command discovery or registration issues
+- ✅ When implementing remote command execution
+
+**How to use this documentation**:
+1. Search for the specific Drush feature you're implementing
+2. Read the official documentation for that feature
+3. Follow Drush's conventions and best practices
+4. Adapt examples to aegir-provision's architecture
+5. Test against actual Drush 13 behavior
+
+**Important notes**:
+- Drush 13 uses PHP 8+ attributes, not annotations (older Drush versions used annotations)
+- Commands extend `\Drush\Commands\DrushCommands`, not older base classes
+- Service container is Symfony-based but configured via drush.services.yml
+- Alias files use YAML format, not legacy PHP arrays
+
+## ⚠️ CRITICAL: Standalone Drush Command Package Architecture
+
+### This is NOT a Drupal Module
+
+**Aegir Provision is a standalone Drush command package** that operates independently of Drupal's module system. This is a fundamental architectural decision with significant implications:
+
+**Package Type**: `drupal-drush` (Composer type)
+- Installed via Composer: `composer require argopecten/aegir-provision`
+- Placed in `drush/Commands/contrib/aegir-provision/` by Composer
+- PSR-4 autoloading: `Aegir\ProvisionD11\` → `src/`
+
+### ⚠️ HIGH PRIORITY TODO: Drush 13.7+ Migration Required
+
+**Status**: Not Started - See [doc/TODO.md](../doc/TODO.md) for complete migration roadmap
+
+The codebase currently uses **deprecated Drush 12 patterns** (DrushCommands base class, drush.services.yml, #[CLI\Command] attributes, multi-command classes, manual dependency instantiation).
+
+**Target**: Migrate to Drush 13.7+ standards (Symfony Command, AutowireTrait, #[AsCommand], one-class-per-command, PSR-4 auto-discovery).
+
+**Estimated effort**: 15-25 days (includes migration, testing, documentation)
+
+**Complete details**: [doc/TODO.md](../doc/TODO.md) contains:
+- Before/after code examples
+- Phase-by-phase migration plan (7 phases)
+- Task breakdown for all 16 commands
+- Testing checklist
+- Documentation update requirements
+- Timeline estimates
+
+**Quick reference**: https://www.drush.org/13.x/commands/
+
+### Critical Distinctions (Still Relevant)
+- Commands run **outside** Drupal bootstrap (can operate on multiple sites)
+- **CANNOT** use Drupal APIs, entities, hooks, or database abstraction
+- **CANNOT** access Drupal's configuration, state, or cache systems
+
+### Why This Architecture Exists
+
+**Provision must operate OUTSIDE Drupal because**:
+
+1. **Pre-Drupal Operations**
+   - `provision-install` creates sites that don't exist yet
+   - Must generate `settings.php` before Drupal can bootstrap
+   - Configures databases before Drupal connects to them
+
+2. **Server-Level Operations**
+   - Apache vhost configuration: `/etc/apache2/sites-available/`
+   - MySQL admin operations: `CREATE DATABASE`, `GRANT ALL`
+   - Filesystem operations: `/var/aegir/`, platform directories
+   - SSL certificate management: `/etc/ssl/`
+
+3. **Multi-Site Management**
+   - Single command context manages multiple Drupal sites
+   - Cannot be "inside" any one site to operate on all sites
+   - Context system (`@server`, `@platform`, `@site`) spans multiple installations
+
+4. **Remote Execution**
+   - Commands run via SSH on remote servers
+   - No Drupal available on infrastructure management servers
+   - Backend invocation from frontend: `drush @remote provision-verify @site`
+
+### What You CANNOT Do
+
+**❌ DO NOT use Drupal APIs**:
+```php
+// ❌ WRONG - These are not available
+\Drupal::service('some.service');
+\Drupal::database()->query();
+\Drupal::config('system.site')->get('name');
+$entity_manager = \Drupal::entityTypeManager();
+\Drupal::logger('provision')->notice();
+```
+
+**❌ DO NOT expect Drupal hooks**:
+```php
+// ❌ WRONG - This is not a Drupal module
+function provision_install() { }  // Hook will never be called
+function provision_entity_insert($entity) { }  // Not available
+```
+
+**❌ DO NOT use Drupal database abstraction**:
+```php
+// ❌ WRONG - Drupal's database layer requires bootstrap
+$connection = \Drupal\Core\Database\Database::getConnection();
+$query = $connection->select('node', 'n');
+```
+
+**❌ DO NOT register routes, forms, or entity types**:
+- No `*.routing.yml` (use Drush commands)
+- No `*.permissions.yml` (Drush commands run as system user)
+- No entity definitions (that's aegir-hosting frontend)
+
+### What You CAN Do
+
+**✅ Use Drush to interact with Drupal sites**:
+```php
+// Execute Drush commands on a specific site context
+use Aegir\ProvisionD11\Core\ProcessRunner;
+
+$runner = new ProcessRunner();
+$result = $runner->run([
+  'drush',
+  '@site',  // Context alias
+  'status',
+  '--format=json'
+]);
+
+// Install a site using Drush
+$result = $runner->run([
+  'drush',
+  'site:install',
+  'standard',
+  '--site-name=Example',
+  '--root=/var/aegir/platforms/drupal-11/web',
+  '--db-url=mysql://user:pass@localhost/db'
+]);
+```
+
+**✅ Use Symfony components**:
+```php
+use Symfony\Component\Process\Process;
+use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Yaml\Yaml;
+
+$process = new Process(['apache2ctl', 'configtest']);
+$process->run();
+
+$fs = new Filesystem();
+$fs->mkdir('/var/aegir/platforms/new-platform');
+$fs->chmod('/var/www/sites/default', 0755);
+
+$data = Yaml::parseFile('~/.drush/sites/example.com.site.yml');
+```
+
+**✅ Execute system commands**:
+```php
+// MySQL admin operations (requires mysql CLI client)
+$runner->run([
+  'mysql',
+  '-u', 'root',
+  '-e', 'CREATE DATABASE example_com'
+]);
+
+// Apache configuration
+$runner->run(['a2ensite', 'example.com.conf']);
+$runner->run(['systemctl', 'reload', 'apache2']);
+```
+
+**✅ Generate configuration files**:
+```php
+// Generate Apache vhost from template
+$renderer = new TemplateRenderer();
+$vhost = $renderer->render('apache/vhost.tpl.php', [
+  'uri' => 'example.com',
+  'root' => '/var/aegir/platforms/drupal-11/web',
+  'port' => 80
+]);
+file_put_contents('/etc/apache2/sites-available/example.com.conf', $vhost);
+```
+
+**✅ Use Drush's service container**:
+```php
+// In ProvisionCommands
+public function __construct(
+  private ProvisionManager $manager,        // Injected by Drush
+  private ContextRepository $contexts,      // Injected by Drush
+  private LoggerInterface $logger           // Drush's PSR-3 logger
+) {}
+
+$this->logger->notice('Site installed: @uri', ['@uri' => $uri]);
+```
+
+### Testing Implications
+
+**Unit tests**:
+- Do NOT require Drupal test base classes
+- Use PHPUnit directly
+- Mock ProcessRunner for command execution
+- Mock ContextRepository for context loading
+
+**Integration tests**:
+- Test against actual Apache, MySQL, filesystem
+- Do NOT use Drupal's BrowserTestBase or KernelTestBase
+- Use Docker containers or test VMs
+- Clean up created sites/databases/vhosts after tests
+
+### Frontend Integration
+
+The **aegir-hosting** Drupal module (separate repository) invokes provision commands:
+
+```php
+// In aegir-hosting module (frontend)
+namespace Drupal\aegir_hosting\Service;
+
+class BackendInvoker {
+  public function install(Site $entity): void {
+    // Frontend has Drupal entity
+    // Converts to context and invokes backend
+    $alias = '@' . $entity->uri->value;
+    
+    $process = new Process([
+      'drush',
+      'provision:install',
+      $alias
+    ]);
+    $process->run();
+  }
+}
+```
+
+**Data flow**:
+1. Frontend (aegir-hosting) manages entities in Drupal
+2. Frontend writes context aliases to `~/.drush/sites/` via ContextRegistry
+3. Frontend invokes backend via Drush commands
+4. Backend (aegir-provision) reads contexts from YAML aliases
+5. Backend performs system operations (Apache, MySQL, filesystem)
+6. Backend returns status via Drush exit codes and output
+7. Frontend parses output and updates entities
+
+**Separation of concerns**:
+- Frontend: Drupal entities, forms, validation, permissions, UI
+- Backend: Infrastructure automation, config generation, system operations
+
 ## Directory Structure
 
 ```

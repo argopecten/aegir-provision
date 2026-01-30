@@ -72,9 +72,11 @@ drush provision-migrate @example.com @platform_d11_updated
 - **Server Management**: Configure Apache, MySQL, SSL certificates
 - **Platform Management**: Drupal codebase verification and configuration
 - **Site Operations**: Install, migrate, clone, backup, restore
-- **Modern Architecture**: PHP 8.3+, Drush 13, Symfony 7.0+ components
+- **Modern Architecture**: PHP 8.3+, Drush 13 compatible, Symfony 7.0+ components
 - **Composer-based**: PSR-4 autoloading, proper dependency management
 - **Template System**: Flexible configuration generation for Apache, Drupal settings
+
+**⚠️ HIGH PRIORITY TODO**: Migrate from deprecated Drush 12 patterns to modern Drush 13.7+ standards. See [provision-d11.md](provision-d11.md#high-priority-for-modernization) for complete migration roadmap.
 
 ## 📦 Requirements
 
