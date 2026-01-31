@@ -21,22 +21,21 @@
     "ext-json": "*",
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
-    "drush/drush": "^13.6",
+    "drush/drush": "^13.7",
     "symfony/process": "^7.0",
     "symfony/yaml": "^7.0",
-    "symfony/filesystem": "^7.0"
+    "symfony/filesystem": "^7.0",
+    "symfony/event-dispatcher": "^7.0"
+  },
+  "conflict": {
+    "drush/drush": "<13.7"
   },
   "autoload": {
     "psr-4": {
-      "Aegir\\ProvisionD11\\": "src/"
+      "Aegir\\Provision\\": "src/"
     }
   },
   "extra": {
-    "drush": {
-      "services": {
-        "drush.services.yml": "^13"
-      }
-    },
     "branch-alias": {
       "dev-main": "11.x-dev"
     }

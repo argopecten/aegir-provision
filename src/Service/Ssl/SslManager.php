@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Aegir\ProvisionD11\Service\Ssl;
+namespace Aegir\Provision\Service\Ssl;
 
-use Aegir\ProvisionD11\Core\ConfigPaths;
-use Aegir\ProvisionD11\Core\Filesystem;
-use Aegir\ProvisionD11\Core\ProcessRunner;
+use Aegir\Provision\Core\ConfigPaths;
+use Aegir\Provision\Core\Filesystem;
+use Aegir\Provision\Core\ProcessRunner;
+use Aegir\Provision\Service\SslServiceInterface;
 
-final class SslManager {
+final class SslManager implements SslServiceInterface {
   private ConfigPaths $paths;
   private Filesystem $filesystem;
   private ProcessRunner $runner;

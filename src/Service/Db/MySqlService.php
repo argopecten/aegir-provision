@@ -2,47 +2,138 @@
 
 declare(strict_types=1);
 
-namespace Aegir\ProvisionD11\Service\Db;
+namespace Aegir\Provision\Service\Db;
 
-use Aegir\ProvisionD11\Core\Context;
-use Aegir\ProvisionD11\Core\ProcessRunner;
+use Aegir\Provision\Core\Context;
+use Aegir\Provision\Core\ProcessRunner;
+use Aegir\Provision\Service\DbServiceInterface;
 
-final class MySqlService {
+final class MySqlService implements DbServiceInterface {
   private ProcessRunner $runner;
+  /** @var array<string,\PDO> Cached PDO connections keyed by server context name */
+  private array $pdoConnections = [];
 
   public function __construct(ProcessRunner $runner) {
     $this->runner = $runner;
   }
 
+  /**
+   * Get or create a PDO connection for the given server context.
+   *
+   * @param Context $server Server context with database connection details
+   * @return \PDO PDO connection instance
+   * @throws \RuntimeException If connection fails
+   */
+  private function getPdoConnection(Context $server): \PDO {
+    $contextName = $server->get('name', 'default');
+    
+    if (isset($this->pdoConnections[$contextName])) {
+      return $this->pdoConnections[$contextName];
+    }
+
+    $host = (string) $server->get('db_host', '127.0.0.1');
+    $port = (string) $server->get('db_port', '3306');
+    $user = (string) $server->get('db_admin_user', 'root');
+    $password = (string) $server->get('db_admin_passwd', '');
+    $socket = $server->get('db_socket');
+
+    // Build DSN
+    if ($socket) {
+      $dsn = "mysql:unix_socket={$socket}";
+    } else {
+      $dsn = "mysql:host={$host};port={$port}";
+    }
+
+    try {
+      $pdo = new \PDO($dsn, $user, $password, [
+        \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+        \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+        \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+      ]);
+      
+      $this->pdoConnections[$contextName] = $pdo;
+      return $pdo;
+    } catch (\PDOException $e) {
+      throw new \RuntimeException("Failed to connect to MySQL: {$e->getMessage()}", 0, $e);
+    }
+  }
+
   public function ensureDatabase(Context $server, string $dbName): void {
-    $this->runSql($server, sprintf('CREATE DATABASE IF NOT EXISTS `%s`', $dbName));
+    $pdo = $this->getPdoConnection($server);
+    
+    try {
+      // Database names cannot be parameterized, but we validate it
+      if (!preg_match('/^[a-zA-Z0-9_]+$/', $dbName)) {
+        throw new \InvalidArgumentException("Invalid database name: {$dbName}");
+      }
+      
+      $sql = "CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+      $pdo->exec($sql);
+    } catch (\PDOException $e) {
+      throw new \RuntimeException("Failed to create database '{$dbName}': {$e->getMessage()}", 0, $e);
+    }
   }
 
   public function ensureUser(Context $server, string $dbUser, string $dbPass, string $dbHost): void {
-    $this->runSql(
-      $server,
-      sprintf("CREATE USER IF NOT EXISTS '%s'@'%s' IDENTIFIED BY '%s'", $dbUser, $dbHost, $this->escapeSql($dbPass))
-    );
-    $this->runSql(
-      $server,
-      sprintf("ALTER USER '%s'@'%s' IDENTIFIED BY '%s'", $dbUser, $dbHost, $this->escapeSql($dbPass))
-    );
+    $pdo = $this->getPdoConnection($server);
+    
+    try {
+      // Note: In MySQL 8.0+, CREATE USER IF NOT EXISTS and ALTER USER handle authentication
+      // We use prepared statements where possible, but user/host must be quoted identifiers
+      $stmt = $pdo->prepare("CREATE USER IF NOT EXISTS ?@? IDENTIFIED BY ?");
+      $stmt->execute([$dbUser, $dbHost, $dbPass]);
+      
+      $stmt = $pdo->prepare("ALTER USER ?@? IDENTIFIED BY ?");
+      $stmt->execute([$dbUser, $dbHost, $dbPass]);
+    } catch (\PDOException $e) {
+      throw new \RuntimeException("Failed to create/update user '{$dbUser}'@'{$dbHost}': {$e->getMessage()}", 0, $e);
+    }
   }
 
   public function grant(Context $server, string $dbName, string $dbUser, string $dbHost): void {
-    $this->runSql(
-      $server,
-      sprintf("GRANT ALL PRIVILEGES ON `%s`.* TO '%s'@'%s'", $dbName, $dbUser, $dbHost)
-    );
-    $this->runSql($server, 'FLUSH PRIVILEGES');
+    $pdo = $this->getPdoConnection($server);
+    
+    try {
+      // Validate database name for identifier safety
+      if (!preg_match('/^[a-zA-Z0-9_]+$/', $dbName)) {
+        throw new \InvalidArgumentException("Invalid database name: {$dbName}");
+      }
+      
+      // GRANT statements require quoted identifiers, cannot use placeholders for db/user/host
+      $stmt = $pdo->prepare("GRANT ALL PRIVILEGES ON `{$dbName}`.* TO ?@?");
+      $stmt->execute([$dbUser, $dbHost]);
+      
+      $pdo->exec('FLUSH PRIVILEGES');
+    } catch (\PDOException $e) {
+      throw new \RuntimeException("Failed to grant privileges on '{$dbName}' to '{$dbUser}'@'{$dbHost}': {$e->getMessage()}", 0, $e);
+    }
   }
 
   public function dropDatabase(Context $server, string $dbName): void {
-    $this->runSql($server, sprintf('DROP DATABASE IF EXISTS `%s`', $dbName));
+    $pdo = $this->getPdoConnection($server);
+    
+    try {
+      // Validate database name for identifier safety
+      if (!preg_match('/^[a-zA-Z0-9_]+$/', $dbName)) {
+        throw new \InvalidArgumentException("Invalid database name: {$dbName}");
+      }
+      
+      $sql = "DROP DATABASE IF EXISTS `{$dbName}`";
+      $pdo->exec($sql);
+    } catch (\PDOException $e) {
+      throw new \RuntimeException("Failed to drop database '{$dbName}': {$e->getMessage()}", 0, $e);
+    }
   }
 
   public function dropUser(Context $server, string $dbUser, string $dbHost): void {
-    $this->runSql($server, sprintf("DROP USER IF EXISTS '%s'@'%s'", $dbUser, $dbHost));
+    $pdo = $this->getPdoConnection($server);
+    
+    try {
+      $stmt = $pdo->prepare("DROP USER IF EXISTS ?@?");
+      $stmt->execute([$dbUser, $dbHost]);
+    } catch (\PDOException $e) {
+      throw new \RuntimeException("Failed to drop user '{$dbUser}'@'{$dbHost}': {$e->getMessage()}", 0, $e);
+    }
   }
 
   public function dump(Context $server, string $dbName, string $targetFile, bool $gzip = FALSE): string {
@@ -105,20 +196,12 @@ final class MySqlService {
   }
 
   public function testConnection(Context $server): void {
-    $command = array_merge($this->mysqlBaseArgs($server, 'mysql'), ['-e', 'SELECT 1']);
-    $env = $this->mysqlEnv($server);
-    $result = $this->runner->run($command, NULL, $env);
-    if ($result['exit_code'] !== 0) {
-      throw new \RuntimeException('mysql connection failed: ' . $result['error']);
-    }
-  }
-
-  private function runSql(Context $server, string $sql): void {
-    $command = array_merge($this->mysqlBaseArgs($server, 'mysql'), ['-e', $sql]);
-    $env = $this->mysqlEnv($server);
-    $result = $this->runner->run($command, NULL, $env);
-    if ($result['exit_code'] !== 0) {
-      throw new \RuntimeException('mysql command failed: ' . $result['error']);
+    try {
+      $pdo = $this->getPdoConnection($server);
+      // Simple query to verify connection works
+      $pdo->query('SELECT 1');
+    } catch (\PDOException | \RuntimeException $e) {
+      throw new \RuntimeException("MySQL connection test failed: {$e->getMessage()}", 0, $e);
     }
   }
 
@@ -145,10 +228,6 @@ final class MySqlService {
   private function mysqlEnv(Context $server): array {
     $password = (string) $server->get('db_admin_passwd', '');
     return $password !== '' ? ['MYSQL_PWD' => $password] : [];
-  }
-
-  private function escapeSql(string $value): string {
-    return str_replace(["\\", "'"], ["\\\\", "\\'"], $value);
   }
 
   private function uncompress(string $sourceFile): string {

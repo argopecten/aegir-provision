@@ -1,5 +1,8 @@
 # AI Agent Quick Reference - aegir-provision
 
+> **⚠️ IMPORTANT**: Before working on this codebase, **READ** [.github/AI-INSTRUCTIONS.md](.github/AI-INSTRUCTIONS.md)  
+> That file contains comprehensive architectural documentation, development patterns, and critical guidelines specific to this project.
+
 **Repository**: Backend Component (Drush Provision System)  
 **Current Location**: `/var/aegir/aegir-2601/drush/Commands/contrib/aegir-provision/`  
 **GitHub**: https://github.com/argopecten/aegir-provision  
@@ -25,7 +28,7 @@ This is the **Backend Component** - a standalone Git repository that is also a s
 - Apache 2.4+ with PHP-FPM
 - PHP 8.3+
 - MySQL 8.0+
-- Drush 13.x
+- Drush 13.7+
 
 ## Development Guidelines
 
@@ -48,15 +51,16 @@ This is the **Backend Component** - a standalone Git repository that is also a s
 - ❌ **CANNOT** access Drupal's configuration, state, or cache systems
 - ❌ **CANNOT** be enabled/disabled like a Drupal module
 
-**⚠️ HIGH PRIORITY TODO - Drush 13.7+ Migration**:
-The codebase currently uses **deprecated Drush 12 patterns** that need migration:
-- ❌ `DrushCommands` base class → should extend `Symfony\Component\Console\Command\Command`
-- ❌ `drush.services.yml` registration → should use PSR-4 auto-discovery with `AutowireTrait`
-- ❌ `#[CLI\Command]` attribute → should use `#[AsCommand]`
-- ❌ Multi-command class → should be one class per command
-- ❌ Manual dependency instantiation → should use constructor injection via `AutowireTrait`
+**✅ Drush 13.7+ Migration Completed**:
+The codebase now uses **modern Drush 13.7+ patterns**:
+- ✅ Symfony Console `Command` classes with `#[AsCommand]`
+- ✅ One command per file under `src/Drush/Commands`
+- ✅ Namespace: `Aegir\Provision\Drush\Commands`
+- ✅ `ProvisionAutowireTrait` (wraps `AutowireTrait`) for constructor injection
+- ✅ `ProvisionServiceRegistry` registers Provision services in the Drush container
+- ✅ PSR-4 auto-discovery (no `drush.services.yml`)
 
-See [README.md](../README.md) for complete migration roadmap.
+See [README.md](../README.md) for current expectations.
 
 **Why this architecture exists**:
 - Provision performs **server-level operations** (Apache config, MySQL admin, filesystem)
@@ -67,7 +71,8 @@ See [README.md](../README.md) for complete migration roadmap.
 **Common mistakes to AVOID**:
 - ❌ DO NOT try to use `\Drupal::service()`, `\Drupal::database()`, or entity API
 - ❌ DO NOT expect Drupal module hooks to work
-- ❌ DO NOT use `drush.services.yml` like a Drupal module's `*.services.yml`
+- ❌ DO NOT use `drush.services.yml` for Drush 13.7+ command registration (deprecated)
+- ❌ DO NOT use global command registration via `drush.commands` configuration
 - ❌ DO NOT bootstrap Drupal unless explicitly invoking commands on a specific site
 - ❌ DO NOT assume Drupal is available - commands can run on bare servers
 
@@ -78,27 +83,17 @@ See [README.md](../README.md) for complete migration roadmap.
 - ✅ Read/write YAML alias files in `~/.drush/sites/`
 - ✅ Generate configuration files (Apache vhosts, settings.php)
 
-### Current Command Registration (DEPRECATED PATTERN - TODO)
+### Command Registration (Drush 13.7+ Standard)
 
-**⚠️ Current implementation uses deprecated Drush 12 pattern**:
-```yaml
-# drush.services.yml - DEPRECATED in Drush 13.7+
-services:
-  aegir_provision_d11.commands:
-    class: Aegir\ProvisionD11\Commands\ProvisionCommands
-    tags:
-      - { name: drush.command }
-```
-
-This pattern is **deprecated in Drush 13.7+** but still functional.
-
-**Target pattern (Drush 13.7+ standard)**:
-- Remove `drush.services.yml` entirely
-- Use PSR-4 auto-discovery: commands in `\Drush\Commands` namespace
-- Use `AutowireTrait` for dependency injection via constructor
-- Each command in separate class file
-- Extend `Symfony\Component\Console\Command\Command`
-- Use `#[AsCommand]` attribute instead of `#[CLI\Command]`
+- PSR-4 auto-discovery: commands in `src/Drush/Commands`
+- Namespace: `Aegir\Provision\Drush\Commands`
+- One command per file, `#[AsCommand]`, `configure()` + `execute()`
+- `ProvisionAutowireTrait` (wraps `AutowireTrait`) for dependency injection
+- Site-wide commandfiles are installed via Composer or committed under `$PROJECT_ROOT/drush/Commands`
+- Valid paths/namespaces (no `src` in the path):
+  - `$PROJECT_ROOT/drush/Commands/ExampleCommands.php` → `Drush\Commands`
+  - `$PROJECT_ROOT/drush/Commands/example/ExampleCommands.php` → `Drush\Commands\example`
+  - `$PROJECT_ROOT/drush/Commands/contrib/dev_modules/ExampleCommands.php` → `Drush\Commands\dev_modules`
 
 See official docs: https://www.drush.org/13.x/commands/
 
@@ -219,7 +214,7 @@ git commit -m "Update provision"       # Commit in parent
 
 ## Key Files
 
-- `src/Commands/ProvisionCommands.php` - All provision-* Drush commands
+- `src/Drush/Commands/` - Drush 13.7+ command classes (one command per file)
 - `src/Core/Context.php` - Immutable context data structure
 - `src/Service/Http/ApacheService.php` - Apache vhost management
 - `src/Service/Db/MySqlService.php` - MySQL operations

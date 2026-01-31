@@ -2,13 +2,62 @@
 
 ## Repository Overview
 
-**Aegir Provision** is a Drush 13 extension that provides the backend automation layer for Aegir Hosting. It manages hosting infrastructure through a context-based system where Drush commands automate web hosting tasks (site install, migrate, backup, restore, SSL configuration).
+**Aegir Provision** is a Drush 13.7+ extension that provides the backend automation layer for Aegir Hosting. It manages hosting infrastructure through a context-based system where Drush commands automate web hosting tasks (site install, migrate, backup, restore, SSL configuration).
 
-**Technology Stack**: PHP 8.3+, Drush 13, Apache 2.4+ with PHP-FPM, MySQL 8.0+, Ubuntu 24.04 LTS
+**Technology Stack**: PHP 8.3+, Drush 13.7+, Apache 2.4+ with PHP-FPM, MySQL 8.0+, Ubuntu 24.04 LTS
 
 **Architecture**: Context-driven orchestration system with service abstractions for HTTP, database, and file operations.
 
-## 📚 External Documentation References
+## � Documentation Structure and Guidelines
+
+### Documentation File Organization
+
+This repository maintains multiple documentation locations, each serving distinct purposes:
+
+**1. Do Not Create New Documentation Files Unless Explicitly Requested**
+- When adding documentation, extend existing files rather than creating new ones
+- Only create new documentation files when specifically instructed by the user
+- Ask for clarification if unsure whether to extend or create new documentation
+
+**2. `doc/` Folder - Public-Facing Long-Term Documentation**
+- **Purpose**: Public documentation synced to GitHub wiki for long-term reference
+- **Audience**: External developers, system administrators, Aegir users
+- **Content Types**:
+  - Architectural documentation (system design, patterns, principles)
+  - Task lists and development roadmaps
+  - Detailed component documentation (classes, services, APIs)
+  - How-to guides and tutorials
+  - Function reference and usage examples
+- **Maintenance**: Keep content current, comprehensive, and user-friendly
+- **Examples**: `doc/extension-system.md`, `doc/provision-d11.md`, `doc/TODO.md`
+
+**3. `.github/` Folder - AI Agent Instructions**
+- **Purpose**: Specialized instructions for AI coding agents (beyond public documentation)
+- **Audience**: AI assistants working on the codebase
+- **Content Types**:
+  - Repository architecture and conventions
+  - Development patterns and anti-patterns
+  - Context-specific coding guidelines
+  - Tool and API reference specific to this codebase
+- **File**: `.github/AI-INSTRUCTIONS.md` (this file)
+- **Note**: Not synced to public wiki; internal development guidance only
+
+**4. `README.md` - Short General Introduction**
+- **Purpose**: Brief overview reflecting current state of the project
+- **Audience**: First-time visitors, quick reference
+- **Content**: Project summary, installation, basic usage, links to detailed docs
+- **Style**: Concise, high-level, keep under 200 lines
+- **Avoid**: Detailed implementation details, extensive tutorials, complete API reference
+
+### Documentation Update Guidelines
+
+When making changes to the codebase:
+- Update relevant `doc/` files to reflect architectural changes
+- Update `.github/AI-INSTRUCTIONS.md` if development patterns change
+- Keep `README.md` brief but current with project status
+- Ensure documentation remains synchronized with code reality
+
+## �📚 External Documentation References
 
 ### Drush 13 Official Documentation (AUTHORITATIVE SOURCE)
 
@@ -25,8 +74,8 @@ This is the **authoritative source** for all Drush 13 functionality. When workin
    - Return values: `Command::SUCCESS`, `Command::FAILURE`, `Command::INVALID`
 
 2. **Dependency Injection**: https://www.drush.org/13.x/dependency-injection/
-   - **CRITICAL**: Modern Drush 13+ uses `AutowireTrait` for constructor-based injection
-   - **DEPRECATED**: `drush.services.yml` approach (Drush 11 pattern, still works but not recommended)
+   - **CRITICAL**: Modern Drush 13+ uses `AutowireTrait` for constructor-based injection; in this repo use `ProvisionAutowireTrait`
+   - **DEPRECATED**: `drush.services.yml` approach (do not use for Drush 13.7+)
    - PSR-4 auto-discovery replaces services.yml registration
    - Available Drush services auto-injected via type hints
 
@@ -70,8 +119,9 @@ This is the **authoritative source** for all Drush 13 functionality. When workin
 
 **Important notes**:
 - Drush 13 uses PHP 8+ attributes, not annotations (older Drush versions used annotations)
-- Commands extend `\Drush\Commands\DrushCommands`, not older base classes
-- Service container is Symfony-based but configured via drush.services.yml
+- Commands extend `Symfony\Component\Console\Command\Command` and use `#[AsCommand]`
+- Command classes are auto-discovered from `src/Drush/Commands` in the `Aegir\Provision\Drush\Commands` namespace
+- Service container is Symfony-based; dependency injection uses `ProvisionAutowireTrait` (wraps `AutowireTrait`) and `ProvisionServiceRegistry` to register Provision services in the Drush container
 - Alias files use YAML format, not legacy PHP arrays
 
 ## ⚠️ CRITICAL: Standalone Drush Command Package Architecture
@@ -83,25 +133,15 @@ This is the **authoritative source** for all Drush 13 functionality. When workin
 **Package Type**: `drupal-drush` (Composer type)
 - Installed via Composer: `composer require argopecten/aegir-provision`
 - Placed in `drush/Commands/contrib/aegir-provision/` by Composer
-- PSR-4 autoloading: `Aegir\ProvisionD11\` → `src/`
+- PSR-4 autoloading: `Aegir\Provision\` → `src/`
 
-### ⚠️ HIGH PRIORITY TODO: Drush 13.7+ Migration Required
+### ✅ Drush 13.7+ Migration
 
-**Status**: Not Started - See [doc/TODO.md](../doc/TODO.md) for complete migration roadmap
+**Status**: Completed - Commands now follow Drush 13.7+ standards (Symfony Console + `#[AsCommand]` + `ProvisionAutowireTrait` + auto-discovery).
 
-The codebase currently uses **deprecated Drush 12 patterns** (DrushCommands base class, drush.services.yml, #[CLI\Command] attributes, multi-command classes, manual dependency instantiation).
+The codebase now uses **modern Drush 13.7+ patterns** (Symfony `Command`, `#[AsCommand]`, one-class-per-command, PSR-4 auto-discovery). Legacy `drush.services.yml` registration has been removed, and Provision services are registered via `ProvisionServiceRegistry` during autowire.
 
-**Target**: Migrate to Drush 13.7+ standards (Symfony Command, AutowireTrait, #[AsCommand], one-class-per-command, PSR-4 auto-discovery).
-
-**Estimated effort**: 15-25 days (includes migration, testing, documentation)
-
-**Complete details**: [doc/TODO.md](../doc/TODO.md) contains:
-- Before/after code examples
-- Phase-by-phase migration plan (7 phases)
-- Task breakdown for all 16 commands
-- Testing checklist
-- Documentation update requirements
-- Timeline estimates
+**Complete details**: [doc/TODO.md](../doc/TODO.md) contains the remaining validation and testing checklist.
 
 **Quick reference**: https://www.drush.org/13.x/commands/
 
@@ -171,7 +211,7 @@ $query = $connection->select('node', 'n');
 **✅ Use Drush to interact with Drupal sites**:
 ```php
 // Execute Drush commands on a specific site context
-use Aegir\ProvisionD11\Core\ProcessRunner;
+use Aegir\Provision\Core\ProcessRunner;
 
 $runner = new ProcessRunner();
 $result = $runner->run([
@@ -302,8 +342,8 @@ class BackendInvoker {
 ```
 aegir-provision/
 ├── src/
-│   ├── Commands/             # Drush 13 command definitions
-│   │   └── ProvisionCommands.php  # provision-* commands
+│   ├── Drush/Commands/        # Drush 13.7+ auto-discovered command classes
+│   │   └── Provision*Command.php  # one command per file
 │   ├── Core/                 # Core abstractions
 │   │   ├── Context.php       # Immutable context data structure
 │   │   ├── ContextRepository.php  # Load/save via Drush AliasStore
@@ -325,7 +365,6 @@ aegir-provision/
 │   └── Config/
 │       ├── TemplateRenderer.php  # Template engine for configs
 │       └── templates/            # Config templates (vhosts, settings)
-├── drush.services.yml        # Service definitions for Drush DI
 └── composer.json             # Package metadata
 
 **Key Principle**: This is backend infrastructure automation - all operations must be idempotent and safe for remote execution.
@@ -428,7 +467,7 @@ class ContextRepository {
 
 ### Command Surface
 
-**File**: [src/Commands/ProvisionCommands.php](src/Commands/ProvisionCommands.php)
+**File**: [src/Drush/Commands](src/Drush/Commands) (one command per file)
 
 All commands use `drush provision-*` naming and accept context references as arguments:
 
@@ -458,18 +497,32 @@ drush provision-verify @server            # Regenerate all server configs
 Commands delegate to **ProvisionManager** for orchestration:
 
 ```php
-#[CLI\Command(name: 'provision:install')]
-#[CLI\Argument(name: 'site', description: 'Site context name')]
-class ProvisionCommands extends DrushCommands {
-  
+use Aegir\Provision\Drush\Commands\ProvisionAutowireTrait;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+
+#[AsCommand(name: 'provision:install')]
+final class ProvisionInstallCommand extends Command {
+  use ProvisionAutowireTrait;
+
   public function __construct(
-    private ProvisionManager $manager,
-    private ContextRepository $contexts
-  ) {}
-  
-  public function install(string $site): void {
-    $context = $this->contexts->load($site);
+    private readonly ProvisionManager $manager,
+    private readonly ContextRepository $contexts
+  ) {
+    parent::__construct();
+  }
+
+  protected function configure(): void {
+    $this->addArgument('site', InputArgument::REQUIRED, 'Site context name');
+  }
+
+  protected function execute(InputInterface $input, OutputInterface $output): int {
+    $context = $this->contexts->load($input->getArgument('site'));
     $this->manager->install($context);
+    return Command::SUCCESS;
   }
 }
 ```
@@ -1033,49 +1086,63 @@ php_admin_value[post_max_size] = 64M
 
 ## Development Conventions
 
-### Drush 13 Integration
+### Drush 13.7+ Integration
 
-**Service Registration** ([drush.services.yml](drush.services.yml)):
-```yaml
-services:
-  provision.commands:
-    class: Aegir\Provision\Commands\ProvisionCommands
-    arguments:
-      - '@provision.manager'
-      - '@provision.context_repository'
-    tags:
-      - { name: drush.command }
-  
-  provision.manager:
-    class: Aegir\Provision\Provision\ProvisionManager
-    arguments:
-      - '@provision.context_repository'
-      - '@provision.service.http'
-      - '@provision.service.db'
-      - '@provision.service.drupal'
-  
-  provision.context_repository:
-    class: Aegir\Provision\Core\ContextRepository
-    arguments:
-      - '@drush.alias.manager'
+Drush 13.7+ requires auto-discovered Symfony Console commands (annotated Drush commands are deprecated).
+
+**Command auto-discovery requirements**:
+- Commands live in `src/Drush/Commands`
+- Namespace: `Aegir\Provision\Drush\Commands`
+- One command per class file
+- Extend `Symfony\Component\Console\Command\Command`
+- Use `#[AsCommand]`, define args/options in `configure()`, logic in `execute()`
+- Use `ProvisionAutowireTrait` (wraps `AutowireTrait`) for constructor-based DI
+- Do not use `drush.services.yml`
+- Do not use global command registration via `drush.commands` configuration
+
+**Site-wide commandfile rules (Drush 13.7+)**:
+- Site-wide commandfiles live under `$PROJECT_ROOT/drush/Commands` or are installed via Composer.
+- Do not include `src` in the commandfile path.
+- Examples of valid paths/namespaces:
+  - `$PROJECT_ROOT/drush/Commands/ExampleCommands.php` → `Drush\Commands`
+  - `$PROJECT_ROOT/drush/Commands/example/ExampleCommands.php` → `Drush\Commands\example`
+  - `$PROJECT_ROOT/drush/Commands/contrib/dev_modules/ExampleCommands.php` → `Drush\Commands\dev_modules`
+
+Example repository:
+```text
+https://github.com/drush-ops/drush/tree/13.x/examples/Commands
 ```
 
-**Command Attributes**:
+**Example Command**:
 ```php
-use Drush\Attributes as CLI;
+use Aegir\Provision\Drush\Commands\ProvisionAutowireTrait;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
-#[CLI\Command(name: 'provision:install', aliases: ['pvi'])]
-#[CLI\Argument(name: 'site', description: 'Site context name')]
-#[CLI\Option(name: 'profile', description: 'Drupal install profile')]
-#[CLI\Option(name: 'client-email', description: 'Admin user email')]
-#[CLI\Usage(name: 'drush provision:install example.com', description: 'Install site')]
-class ProvisionCommands extends DrushCommands {
-  
-  public function install(
-    string $site,
-    array $options = ['profile' => 'standard', 'client-email' => null]
-  ): void {
-    // Implementation
+#[AsCommand(
+  name: 'provision:install',
+  description: 'Install a Drupal site',
+  aliases: ['pvi']
+)]
+final class ProvisionInstallCommand extends Command {
+  use ProvisionAutowireTrait;
+
+  public function __construct(
+    private readonly ProvisionManager $manager
+  ) {
+    parent::__construct();
+  }
+
+  protected function configure(): void {
+    $this->addArgument('site', InputArgument::REQUIRED, 'Site context name');
+  }
+
+  protected function execute(InputInterface $input, OutputInterface $output): int {
+    $this->manager->install($input->getArgument('site'));
+    return Command::SUCCESS;
   }
 }
 ```
@@ -1269,7 +1336,7 @@ $this->filesystem->chown($path, 'aegir', 'www-data');
 
 ## Key Files Reference
 
-- [src/Commands/ProvisionCommands.php](src/Commands/ProvisionCommands.php) - Drush command definitions
+- [src/Drush/Commands](src/Drush/Commands) - Drush 13.7+ auto-discovered command classes
 - [src/Core/Context.php](src/Core/Context.php) - Immutable context structure
 - [src/Core/ContextRepository.php](src/Core/ContextRepository.php) - Context persistence
 - [src/Provision/ProvisionManager.php](src/Provision/ProvisionManager.php) - Central orchestrator
@@ -1277,4 +1344,3 @@ $this->filesystem->chown($path, 'aegir', 'www-data');
 - [src/Service/Db/MySqlService.php](src/Service/Db/MySqlService.php) - MySQL database operations
 - [src/Service/Drupal/SettingsWriter.php](src/Service/Drupal/SettingsWriter.php) - settings.php generation
 - [src/Core/Filesystem.php](src/Core/Filesystem.php) - File operations with permissions
-- [drush.services.yml](drush.services.yml) - Service container configuration

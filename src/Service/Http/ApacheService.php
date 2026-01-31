@@ -2,16 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Aegir\ProvisionD11\Service\Http;
+namespace Aegir\Provision\Service\Http;
 
-use Aegir\ProvisionD11\Config\TemplateRenderer;
-use Aegir\ProvisionD11\Core\ConfigPaths;
-use Aegir\ProvisionD11\Core\Context;
-use Aegir\ProvisionD11\Core\Filesystem;
-use Aegir\ProvisionD11\Core\ProcessRunner;
-use Aegir\ProvisionD11\Service\Ssl\SslManager;
+use Aegir\Provision\Config\TemplateRenderer;
+use Aegir\Provision\Core\ConfigPaths;
+use Aegir\Provision\Core\Context;
+use Aegir\Provision\Core\Filesystem;
+use Aegir\Provision\Core\ProcessRunner;
+use Aegir\Provision\Core\ValueObject\ApacheVhostConfig;
+use Aegir\Provision\Service\HttpServiceInterface;
+use Aegir\Provision\Service\Ssl\SslManager;
 
-final class ApacheService {
+final class ApacheService implements HttpServiceInterface {
   private ConfigPaths $paths;
   private Filesystem $filesystem;
   private TemplateRenderer $templates;
@@ -51,28 +53,21 @@ final class ApacheService {
   /**
    * @return array<string,string>
    */
-  public function enableSite(Context $site, Context $platform, Context $server, array $options = []): array {
+  public function enableSite(Context $site, Context $platform, Context $server, ApacheVhostConfig $config): array {
     $dirs = $this->ensureServerLayout($server->name());
     $filename = $this->sanitizeFileName($site->name()) . '.conf';
 
-    $docroot = $options['docroot'] ?? $platform->get('root');
-    $sitePath = $options['site_path'] ?? $docroot . '/sites/' . $site->get('uri');
-
-    $httpPort = (int) ($options['http_port'] ?? $server->get('http_port', 80));
-    $sslPort = (int) ($options['http_ssl_port'] ?? $server->get('http_ssl_port', 443));
-
-    $sslEnabled = (bool) ($site->get('ssl_enabled', FALSE) || $site->get('ssl', FALSE));
     $sslRedirect = (bool) ($site->get('ssl_redirect', FALSE) || $site->get('ssl_redirection', FALSE));
 
     $vars = [
-      'server_name' => $site->get('uri'),
-      'server_aliases' => (array) ($site->get('aliases', []) ?: []),
-      'docroot' => $docroot,
-      'site_path' => $sitePath,
-      'http_port' => $httpPort,
+      'server_name' => $config->serverName,
+      'server_aliases' => $config->serverAliases,
+      'docroot' => $config->documentRoot,
+      'site_path' => dirname($config->documentRoot) . '/sites/' . $config->serverName,
+      'http_port' => $config->port,
       'ssl_redirect' => $sslRedirect,
       'canonical_host' => $site->get('redirection'),
-      'extra_config' => (string) ($site->get('http_extra_config', '') ?: $site->get('apache_extra_config', '')),
+      'extra_config' => implode("\n", array_values($config->customDirectives)),
     ];
 
     $vhost = $this->templates->render('apache/vhost.tpl.php', $vars);
@@ -80,13 +75,13 @@ final class ApacheService {
     $this->filesystem->writeFile($vhostPath, $vhost, 0644);
 
     $sslPath = '';
-    if ($sslEnabled) {
-      $ssl = $this->sslManager->resolve($server->name(), $site->get('uri'), array_merge($server->all(), $site->all()));
+    if ($config->isSslEnabled()) {
+      $ssl = $this->sslManager->resolve($server->name(), $config->serverName, array_merge($server->all(), $site->all()));
       $sslVars = $vars + [
-        'http_ssl_port' => $sslPort,
-        'ssl_cert' => $ssl['cert'],
-        'ssl_key' => $ssl['key'],
-        'ssl_chain' => $ssl['chain'],
+        'http_ssl_port' => $config->isSslEnabled() ? 443 : $config->port,
+        'ssl_cert' => $config->sslCertPath ?? $ssl['cert'],
+        'ssl_key' => $config->sslKeyPath ?? $ssl['key'],
+        'ssl_chain' => $config->sslCaPath ?? $ssl['chain'],
       ];
       $vhostSsl = $this->templates->render('apache/vhost_ssl.tpl.php', $sslVars);
       $sslPath = $dirs['vhost_ssl'] . '/' . $filename;

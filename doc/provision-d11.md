@@ -1,13 +1,13 @@
 # Aegir Provision (D11) System Architecture Document
 
 ## Scope
-This SAD defines a Drupal 10+ (Composer-only) oriented architecture for the Provision backend. It reuses the subsystem model described in `architecture/provision-d7.md`, and specifies the compatibility targets for Drupal 10+, Drush 13, and PHP 8.3+.
+This SAD defines a Drupal 10+ (Composer-only) oriented architecture for the Provision backend. It reuses the subsystem model described in `architecture/provision-d7.md`, and specifies the compatibility targets for Drupal 10+, Drush 13.7+, and PHP 8.3+.
 
 The document describes functionality, component map, context definitions, hostmaster integration, service types (http/db), SSL behavior, Drupal version support, Drush command surface, and dependencies within a Drupal 11 architecture.
 
 ## Goals
 - Preserve Provision's core lifecycle behavior (server/platform/site management, config generation, task execution).
-- Target **Drupal 10+** Composer-only platforms, **Drush 13**, and **PHP 8.3+** compatibility.
+- Target **Drupal 10+** Composer-only platforms, **Drush 13.7+**, and **PHP 8.3+** compatibility.
 - Ensure supported Drupal 10+ platforms are compatible with PHP 8.3+.
 - Maintain the backend/frontend split where Hostmaster drives Provision via Drush commands and aliases.
 - Keep services modular (http, db) with explicit configuration and lifecycle hooks.
@@ -33,20 +33,24 @@ Primary components:
 ## Drush extension layout (vendor)
 Provision is delivered as a Composer package that registers Drush commands from `vendor/`, without requiring a Drupal module.
 
-Actual package layout:
+Drush 13.7+ required package layout:
 - `composer.json` (type: `drupal-drush`)
-- `drush.services.yml` (registers command class - Drush 12 pattern, deprecated in 13.7+ but functional)
-- `src/Commands/ProvisionCommands.php` (command definitions using deprecated DrushCommands base class and #[CLI\Command] attributes)
+- `src/Drush/Commands/` (auto-discovered command classes in the `Aegir\Provision\Drush\Commands` namespace)
+- `src/Drush/Commands/Provision*Command.php` (one Symfony Console command per file, using `#[AsCommand]` and `ProvisionAutowireTrait`)
+- `src/Drush/Commands/ProvisionAutowireTrait.php` (wraps Drush `AutowireTrait` and registers Provision services)
+- `src/Drush/ProvisionServiceRegistry.php` (registers Provision services in the Drush container for autowiring)
 - `src/Core/*` (core infrastructure: Context, ContextRepository, ContextType, AliasStore, Filesystem, ProcessRunner, ConfigPaths, PlatformRoot)
-- `src/Provision/ProvisionManager.php` (main orchestration and task execution)
+- `src/ProvisionManager.php` (main orchestration and task execution)
 - `src/Service/*` (service implementations: Db/MySqlService, Http/ApacheService, Drupal/SettingsWriter, Ssl/SslManager)
 - `src/Config/TemplateRenderer.php` (template rendering engine)
 - `resources/templates/*` (config templates for Apache, Drupal settings, etc.)
 
-The implementation uses modern PHP 8.3+ features including strict types, constructor property promotion, readonly properties, and Drush PHP 8 attributes.
+Legacy note: `drush.services.yml` is deprecated for Drush 13.7+ and has been removed in favor of command auto-discovery and a small registry to make Provision services available for autowiring.
+
+The implementation uses modern PHP 8.3+ features including strict types, constructor property promotion, readonly properties, and PHP 8 attributes.
 
 ## Context model
-Contexts are named Drush site aliases representing infrastructure and Drupal objects. The Context class (`Aegir\ProvisionD11\Core\Context`) is a simple data structure managed by ContextRepository. Contexts are stored as YAML site alias files in `~/.drush/sites/aegir/*.site.yml`.
+Contexts are named Drush site aliases representing infrastructure and Drupal objects. The Context class (`Aegir\Provision\Core\Context`) is a simple data structure managed by ContextRepository. Contexts are stored as YAML site alias files in `~/.drush/sites/aegir/*.site.yml`.
 
 ### Server context
 Responsibilities:
@@ -73,7 +77,7 @@ Responsibilities:
 
 Code references:
 - Platform root detection: `src/Core/PlatformRoot.php` (detects `/web`, `/docroot`, `/html` layouts)
-- ProvisionManager platform verify: `src/Provision/ProvisionManager.php` (`verifyPlatform()`)
+- ProvisionManager platform verify: `src/ProvisionManager.php` (`verifyPlatform()`)
 
 Current implementation:
 - Platform contexts store `root` (platform base path), `server` (server context reference).
@@ -87,7 +91,7 @@ Responsibilities:
 - Generates Drupal settings.php and Apache vhost configuration.
 
 Code references:
-- Site verification: `src/Provision/ProvisionManager.php` (`verifySite()`)
+- Site verification: `src/ProvisionManager.php` (`verifySite()`)
 - Settings generation: `src/Service/Drupal/SettingsWriter.php`
 - Apache vhost: `src/Service/Http/ApacheService.php`
 
@@ -234,7 +238,7 @@ Code references:
 
 ### HTTP service (Apache)
 **Current implementation: Apache only** (Nginx, Cluster, Pack services from D7 not implemented)
-- Service class: `Aegir\ProvisionD11\Service\Http\ApacheService`
+- Service class: `Aegir\Provision\Service\Http\ApacheService`
 - Creates Apache configuration directory structure: `pre.d`, `post.d`, `platform.d`, `vhost.d`, `vhost_ssl.d`, `disabled.d`
 - Generates vhost configuration from templates in `resources/templates/apache/`
 - Supports SSL via SslManager integration
@@ -283,7 +287,7 @@ Apache configuration features:
 
 ### Database service (MySQL/MariaDB)
 Current implementation:
-- Service class: `Aegir\ProvisionD11\Service\Db\MySqlService`
+- Service class: `Aegir\Provision\Service\Db\MySqlService`
 - Executes MySQL commands via ProcessRunner using mysql CLI client
 - Uses PHP 8.3+ strict types and modern syntax
 
@@ -324,7 +328,7 @@ Features:
 Provision executes tasks through ProvisionManager, which orchestrates services and manages context state.
 
 Current implementation:
-- **ProvisionManager**: `src/Provision/ProvisionManager.php` - Main orchestration class
+- **ProvisionManager**: `src/ProvisionManager.php` - Main orchestration class
 - Task methods: `verify()`, `install()`, `backup()`, `restore()`, `deploy()`, `migrate()`, `cloneSite()`, `enable()`, `disable()`, `lock()`, `unlock()`, `delete()`, `loginReset()`
 - Context types handled: server, platform, site
 - Service coordination: ApacheService, MySqlService, SettingsWriter, SslManager
@@ -361,7 +365,7 @@ Key workflows:
 - **Lock/Unlock**: Add maintenance mode to site
 - **Delete**: Remove site, optionally delete database and files
 
-Code reference: `src/Provision/ProvisionManager.php` (773 lines of orchestration logic)
+Code reference: `src/ProvisionManager.php` (773 lines of orchestration logic)
 
 ## Filesystem and sync layer
 Provision uses modern filesystem abstraction and process execution for consistent operations.
@@ -435,7 +439,7 @@ Modern approach:
 - Proper file permissions and ownership for certificates (mode 0600 for private keys)
 
 ## Drush command surface
-Provision defines Drush 13 commands using PHP 8 attributes in `src/Commands/ProvisionCommands.php`.
+Provision defines Drush 13.7+ commands as Symfony Console classes in `src/Drush/Commands/`.
 
 Implemented commands:
 - `provision-save`: Save or update context data (with `--data`, `--data-file`, `--type`, `--delete` options)
@@ -455,65 +459,71 @@ Implemented commands:
 - `provision-login-reset`: Reset admin login for a site
 - `backend-parse`: Parse backend command output (legacy compatibility)
 
-Command implementation:
-- All commands use Drush 13 PHP attributes (`#[CLI\Command]`, `#[CLI\Argument]`, `#[CLI\Option]`)
+Command implementation (Drush 13.7+ required):
+- All commands are Symfony Console commands using `#[AsCommand]`
+- Arguments/options defined in `configure()`, logic in `execute()`
 - Commands accept context name (with or without `@` prefix)
+- `ProvisionAutowireTrait` enables constructor-based dependency injection and registers Provision services in the Drush container
 - ProvisionManager orchestrates all task execution
 - Commands integrate with Drush logger for output
 
-Code reference: `src/Commands/ProvisionCommands.php`
+### Drush 13.7+ Commandfile Requirements
 
-## Drush 13 integration (IMPLEMENTED)
-Provision has been fully implemented using Drush 13's class-based command system and modern PHP 8.3+ features.
+- **AutowireTrait required**: command classes use `ProvisionAutowireTrait` for DI; Drush does not use Drupal’s container automatically.
+- **Site-wide commands only**: commandfiles live under the site’s `drush/Commands` tree or are installed via Composer.
+- **No global config discovery**: do not use `drush.commands` configuration to register commands.
+- **Valid paths / namespaces** (no `src` in the path):
+  - `$PROJECT_ROOT/drush/Commands/ExampleCommands.php` → `Drush\Commands`
+  - `$PROJECT_ROOT/drush/Commands/example/ExampleCommands.php` → `Drush\Commands\example`
+  - `$PROJECT_ROOT/drush/Commands/contrib/dev_modules/ExampleCommands.php` → `Drush\Commands\dev_modules`
 
-Implemented features:
-- ✅ Class-based commands in `src/Commands/ProvisionCommands.php` using PHP 8 attributes
+Site-wide command examples:
+```text
+https://github.com/drush-ops/drush/tree/13.x/examples/Commands
+```
+
+Code reference: `src/Drush/Commands/`
+
+## Drush 13.7 integration (REQUIRED)
+Drush 13.7 deprecates annotated commands and requires pure Symfony Console commands for new work.
+
+Required features:
 - ✅ YAML site alias storage in `~/.drush/sites/aegir/*.site.yml` (managed by AliasStore)
-- ✅ Service registration via `drush.services.yml`
-- ✅ PSR-4 autoloading with `Aegir\ProvisionD11\` namespace
-- ✅ Modern dependency injection and service architecture
+- ✅ PSR-4 autoloading with `Aegir\Provision\` namespace
+- ✅ Class-based commands under `src/Drush/Commands` using `#[AsCommand]`
+- ✅ One command per class file, with `configure()` + `execute()`
+- ✅ `ProvisionAutowireTrait` for constructor-based dependency injection
 - ✅ ProcessRunner for external command execution (replaces `drush_shell_exec`)
 - ✅ Strict typing and PHP 8.3+ syntax throughout codebase
 - ✅ Context management via ContextRepository and AliasStore
+- ✅ `drush.services.yml` removed (deprecated; not used under Drush 13.7+)
 
-Architecture:
-- **Commands layer**: `src/Commands/ProvisionCommands.php` - Drush command definitions
+Architecture (target layout):
+- **Commands layer**: `src/Drush/Commands/*` - Symfony Console command classes
 - **Core layer**: `src/Core/*` - Context, ContextRepository, AliasStore, Filesystem, ProcessRunner, ConfigPaths, PlatformRoot
-- **Provision layer**: `src/Provision/ProvisionManager.php` - Main orchestration and task execution
+- **Provision layer**: `src/ProvisionManager.php` - Main orchestration and task execution
 - **Service layer**: `src/Service/*` - ApacheService, MySqlService, SettingsWriter, SslManager
 - **Config layer**: `src/Config/TemplateRenderer.php` - Template rendering engine
 
-Package registration:
-```yaml
-# drush.services.yml
-services:
-  aegir_provision_d11.commands:
-    class: Aegir\ProvisionD11\Commands\ProvisionCommands
-    tags:
-      - { name: drush.command }
-```
-
-Composer package example:
+Composer package example (Drush 13.7+):
 ```json
 {
   "name": "argopecten/aegir-provision",
   "type": "drupal-drush",
   "require": {
     "php": ">=8.3",
-    "drush/drush": "^13.6",
+    "drush/drush": "^13.7",
     "symfony/process": "^7.0"
+  },
+  "conflict": {
+    "drush/drush": "<13.7"
   },
   "autoload": {
     "psr-4": {
-      "Aegir\\ProvisionD11\\": "src/"
+      "Aegir\\Provision\\": "src/"
     }
   },
   "extra": {
-    "drush": {
-      "services": {
-        "drush.services.yml": "^13"
-      }
-    },
     "branch-alias": {
       "dev-main": "11.x-dev"
     }
@@ -521,15 +531,18 @@ Composer package example:
 }
 ```
 
-## Extension points (future)
-The current implementation is designed for extensibility through dependency injection and service architecture.
+## Extension points (REQUIRED)
+The current implementation is designed for extensibility through dependency injection and service architecture, but **lacks a formal extension API**. This is a **critical must-have feature** for production use.
 
-Planned extension mechanisms:
-- Service plugin system for additional HTTP servers (Nginx, Caddy, etc.)
-- Database service plugins for PostgreSQL, MongoDB, etc.
-- Custom template directories
-- Event/hook system for task lifecycle
-- Service discovery via Drush service tags
+**Required extension mechanisms** (high priority):
+- **Event/hook system for task lifecycle** - Allow third-party code to inject logic at validation, pre, execute, post, and rollback phases
+- **Service plugin system** - Support custom HTTP servers (Nginx, Caddy), database backends (PostgreSQL, MongoDB), and other service implementations
+- **Service discovery via Drush service tags** - Auto-discover and register third-party services
+
+**Additional planned mechanisms** (medium priority):
+- Custom template directories with override support
+- Middleware pattern for command processing
+- Extension configuration and dependency management
 
 Current architecture supports extension by:
 - Dependency injection in ProvisionManager constructor
@@ -616,11 +629,12 @@ Platform verification:
 Code references:
 - Platform root: `src/Core/PlatformRoot.php`
 - Settings writer: `src/Service/Drupal/SettingsWriter.php`
-- Platform tasks: `src/Provision/ProvisionManager.php` (`verifyPlatform()`, etc.)
+- Platform tasks: `src/ProvisionManager.php` (`verifyPlatform()`, etc.)
 
-## Dependencies (Drupal 11+ architecture - CURRENT IMPLEMENTATION)
-Runtime dependencies (from `composer.json`):\n- **PHP 8.3+** with extensions: `ext-json`, `ext-pdo`, `ext-pdo_mysql`
-- **Drush 13.6+** for command execution and alias management
+## Dependencies (Drupal 11+ architecture - Drush 13.7+ REQUIREMENT)
+Runtime dependencies (from `composer.json`):
+- **PHP 8.3+** with extensions: `ext-json`, `ext-pdo`, `ext-pdo_mysql`
+- **Drush 13.7+** for command execution and alias management
 - **Symfony 7.0+** components: `symfony/process`, `symfony/yaml`, `symfony/filesystem`
 - **Composer** for package installation and autoloading
 - External tools: `mysql`, `mysqldump`, `openssl`, `rsync` (optional), `ssh` (optional)
@@ -635,22 +649,20 @@ Composer package configuration:
     "ext-json": "*",
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
-    "drush/drush": "^13.6",
+    "drush/drush": "^13.7",
     "symfony/process": "^7.0",
     "symfony/yaml": "^7.0",
     "symfony/filesystem": "^7.0"
   },
+  "conflict": {
+    "drush/drush": "<13.7"
+  },
   "autoload": {
     "psr-4": {
-      "Aegir\\ProvisionD11\\": "src/"
+      "Aegir\\Provision\\": "src/"
     }
   },
   "extra": {
-    "drush": {
-      "services": {
-        "drush.services.yml": "^13"
-      }
-    },
     "branch-alias": {
       "dev-main": "11.x-dev"
     }
@@ -660,11 +672,11 @@ Composer package configuration:
 
 Installation:
 - Install via Composer: `composer require argopecten/aegir-provision`
-- Drush automatically discovers commands via `drush.services.yml`
+- Drush auto-discovers commands from `src/Drush/Commands` using `#[AsCommand]`
 - No Drupal module required - runs as vendor package
 
 Code organization:
-- Namespace: `Aegir\\ProvisionD11\\`
+- Namespace: `Aegir\\Provision\\`
 - All code uses strict types (`declare(strict_types=1);`)
 - Modern PHP 8.3+ features: attributes, constructor property promotion, readonly properties
 
@@ -672,7 +684,7 @@ Code organization:
 
 ### Completed (✅)
 - **Core architecture**: Modern PHP 8.3+ class-based design with strict types
-- **Drush compatibility**: Functional command system (uses Drush 12 patterns, see note below)
+- **Drush 13.7+ command system**: Symfony Console commands with `#[AsCommand]`, `ProvisionAutowireTrait`, and PSR-4 auto-discovery
 - **Context management**: Context, ContextRepository, ContextType, AliasStore
 - **YAML alias storage**: Drush site aliases in `~/.drush/sites/aegir/`
 - **Service architecture**: ApacheService, MySqlService, SettingsWriter, SslManager
@@ -685,41 +697,20 @@ Code organization:
 - **SSL/TLS**: Certificate management through SslManager
 - **Platform detection**: Auto-detect `/web`, `/docroot`, `/html` Composer layouts
 
-### High Priority for Modernization (⚠️ TODO)
+### Critical Requirements (MUST HAVE)
 
-**CRITICAL: Drush 13.7+ Migration Required**
-The codebase currently uses deprecated Drush 12 patterns. This migration is essential for long-term maintainability and compliance with modern Drush standards (https://www.drush.org/13.x/commands/).
+- **Extension/Hook System**: **CRITICAL** - Event system and service plugin architecture for third-party extensions. Without this, D11 cannot support:
+  - Custom validation logic (e.g., domain restrictions, quota checks)
+  - Post-operation hooks (e.g., remote backup sync, notifications)
+  - Alternative service implementations (custom HTTP/DB backends)
+  - Site-specific customizations beyond core functionality
+  - Extension points: `BeforeInstallEvent`, `AfterBackupEvent`, `ServicePluginInterface`, etc.
 
-**Migration Tasks**:
-1. **Command Structure**:
-   - Split `ProvisionCommands` into separate command classes (one per command)
-   - Each command in its own file: `ProvisionSaveCommand.php`, `ProvisionVerifyCommand.php`, etc.
-   - Move from `src/Commands/` to proper namespace structure
+### High Priority (Remaining)
 
-2. **Base Class & Attributes**:
-   - Replace `extends DrushCommands` with `extends Symfony\Component\Console\Command\Command`
-   - Replace `#[CLI\Command(name: '...')]` with `#[AsCommand(name: '...', aliases: [...])]`
-   - Move options/arguments from attributes to `configure()` method
-
-3. **Dependency Injection**:
-   - Add `use AutowireTrait` to command classes
-   - Implement constructor-based dependency injection
-   - Remove manual `new ProvisionManager(...)` instantiation in every method
-
-4. **Service Registration**:
-   - Remove `drush.services.yml` file
-   - Rely on PSR-4 auto-discovery (commands in `\Drush\Commands` namespace relative to PSR-4 base)
-   - Update composer.json if needed for proper namespace mapping
-
-5. **Execution Methods**:
-   - Move logic from command methods to `execute(InputInterface $input, OutputInterface $output)` method
-   - Implement `configure()` for options/arguments
-   - Optional: implement `interact()` for user interaction
-
-**Additional High Priority Tasks**:
-- **Hook system**: Extension points for custom service implementations
-- **Testing**: Automated test suite for core functionality
+- **Testing**: Automated test suite for core functionality (unit + integration)
 - **Documentation**: Update all examples to show modern Drush 13.7+ patterns
+- **Context schema documentation**: Formal documentation of context data structure for each type
 
 ### Optional/Low Priority Features (📋)
 - **Nginx support**: Nginx service implementation (Apache-only currently sufficient)
@@ -727,18 +718,6 @@ The codebase currently uses deprecated Drush 12 patterns. This migration is esse
 - **Cluster/Pack services**: Multi-webserver configurations (enterprise feature)
 - **Backup compression**: Advanced backup formats and compression options
 - **PostgreSQL/MongoDB**: Alternative database backends (MySQL sufficient currently)
-
-### Known Technical Debt
-**⚠️ Deprecated Drush Patterns** (see [High Priority for Modernization](#high-priority-for-modernization-️-todo) above):
-
-The codebase uses Drush 12 command patterns which are deprecated in Drush 13.7+ but remain functional:
-- `DrushCommands` base class → should be `Symfony\Component\Console\Command\Command`
-- `drush.services.yml` registration → should use PSR-4 auto-discovery
-- `#[CLI\Command]` attribute → should be `#[AsCommand]`
-- Manual dependency instantiation → should use AutowireTrait
-- Multi-command class pattern → should be one class per command
-
-**Impact**: These patterns work correctly but violate modern Drush 13.7+ standards (https://www.drush.org/13.x/commands/). Migration to modern patterns is tracked as high-priority TODO above.
 
 ### Architecture differences from legacy Provision
 Legacy Provision used procedural PHP with hooks (`provision.inc`, `Provision_*` classes). Current implementation uses:
@@ -809,3 +788,595 @@ Legacy Provision used procedural PHP with hooks (`provision.inc`, `Provision_*` 
 - Review generated configs in `{config_path}/apache/`
 - Check context data: `drush site:alias @site --full`
 - Validate file permissions: `ls -la {platform}/sites/{uri}/`
+
+---
+
+## Refactoring Drupal 7 Commands for Drush 13.7+
+
+### High-Level Refactoring Strategy
+
+The D7 Provision implementation uses procedural Drush 8 patterns with hooks. The D11 implementation must modernize to:
+
+1. **Symfony Console Commands**: Replace `hook_drush_command()` arrays with `#[AsCommand]` attribute classes
+2. **Dependency Injection**: Replace global `d()` context access with constructor-injected services
+3. **Service Architecture**: Convert `Provision_Service_*` classes to modern PHP 8.3+ service classes
+4. **YAML Aliases**: Maintain compatibility with Drush alias system
+5. **Process Execution**: Use Symfony Process component instead of `drush_shell_exec()`
+6. **Hook System**: Replace Drush module hooks with event system or service callbacks
+
+### Command Refactoring Matrix
+
+This matrix maps D7 commands to D11 implementation requirements. Based on analysis of D7 `/var/aegir/d7/aegir-provision` and D11 current implementation:
+
+| D7 Command | D11 Status | Bootstrap | Refactoring Notes |
+|------------|-----------|-----------|-------------------|
+| provision-save | ✅ Implemented | DRUSH | Context persistence via ContextRepository/AliasStore. D7 used `Provision_Config_Drushrc_Alias`, D11 uses AliasStore. |
+| provision-verify | ✅ Implemented | DRUSH | Multi-context dispatch, service orchestration. D7 invoked hooks, D11 uses ProvisionManager explicit methods. |
+| provision-install | ✅ Implemented | DRUPAL_ROOT | Drush site:install integration, db creation. D7 used `provision-install-backend`, D11 uses ProcessRunner. |
+| provision-backup | ✅ Implemented | DRUPAL_ROOT | Tarball + mysqldump, returns backup path. Both versions create `{uri}-{timestamp}.tar.gz`. |
+| provision-restore | ✅ Implemented | DRUPAL_ROOT | Atomic directory swap, db import. D7 created pre-restore backup, D11 maintains same pattern. |
+| provision-deploy | ✅ Implemented | DRUPAL_ROOT | Backup deployment to different context. D7 updated file references with `old_uri`, D11 equivalent. |
+| provision-migrate | ✅ Implemented | DRUPAL_ROOT | Platform change, update.php for version changes. D7 used hooks, D11 uses explicit orchestration. |
+| provision-clone | ✅ Implemented | DRUPAL_ROOT | New context + db duplication. D7 used backup/deploy, D11 similar pattern. |
+| provision-import | ✅ Implemented | DRUPAL_ROOT | Detect existing site, parse settings.php. D7 inspected settings for db creds, D11 maintains compatibility. |
+| provision-enable | ✅ Implemented | DRUPAL_ROOT | Move vhost from `disabled.d/` to `vhost.d/`. Same pattern in both versions. |
+| provision-disable | ✅ Implemented | DRUPAL_ROOT | Move vhost to `disabled.d/`, show maintenance page. Same pattern in both versions. |
+| provision-lock | ✅ Implemented | DRUPAL_ROOT | Set `platform_locked` flag. Simple flag operation in both versions. |
+| provision-unlock | ✅ Implemented | DRUPAL_ROOT | Clear `platform_locked` flag. Simple flag operation in both versions. |
+| provision-delete | ✅ Implemented | DRUSH | Multi-phase deletion with final backup. D7 verified no dependent contexts, D11 same. |
+| provision-login-reset | ✅ Implemented | DRUPAL_ROOT | Invoke `drush user:login`. D7 used `drush_invoke_process`, D11 uses ProcessRunner. |
+| provision-backup-delete | 📋 Not implemented | DRUSH | Delete backup file. Simple file removal (low priority/optional). |
+| backend-parse | ✅ Implemented | DRUSH | Parse backend output (legacy compat). For frontend integration. |
+| hostmaster-install | 📋 Not implemented | DRUSH | Install Aegir hosting system. Orchestrates frontend installation (low priority/optional). |
+| hostmaster-migrate | 📋 Not implemented | DRUSH | Migrate Aegir to new platform. Updates hosting system (low priority/optional). |
+| hostmaster-uninstall | 📋 Not implemented | DRUPAL_SITE | Uninstall Aegir hosting system. Cleanup and removal (low priority/optional). |
+
+**Status Key**:
+- ✅ Implemented: Command exists and works in D11
+- ⚠️ Not implemented: Missing or intentionally excluded
+- ❌ Broken: Exists but needs fixing
+
+### Context System Refactoring
+
+**D7 Pattern** (procedural with global state):
+
+```php
+// D7: Global d() function in provision.context.inc
+function & d($name = NULL, $_root_object = FALSE, $allow_creation = TRUE) {
+  static $instances = null;
+  
+  // Load from Drush alias or create new
+  if (isset($instances[$name])) {
+    return $instances[$name];
+  }
+  
+  $instances[$name] = provision_context_factory($name, $allow_creation);
+  $instances[$name]->method_invoke('init');
+  return $instances[$name];
+}
+
+// D7: Usage - global access
+$site = d('@example.com');
+$uri = $site->uri;  // Direct property access
+$platform = d($site->platform);  // Chained loading
+$site->write_alias();  // Save to file
+
+// D7: Context classes
+class Provision_Context_server extends Provision_Context {
+  function init_server() {
+    $this->setProperty('aegir_root');
+    $this->load_services();
+  }
+}
+```
+
+**D11 Pattern** (dependency injection):
+
+```php
+// D11: No global d() function, explicit loading via ContextRepository
+namespace Aegir\Provision\Core;
+
+class ContextRepository {
+    public function __construct(
+        private readonly AliasStore $store
+    ) {}
+    
+    public function load(string $name): Context {
+        // Load from YAML alias
+        $data = $this->store->read($name);
+        return new Context($name, $data['type'], $data);
+    }
+    
+    public function save(Context $context): void {
+        $this->store->write($context->getName(), [
+            'type' => $context->getType(),
+            ...$context->all(),
+        ]);
+    }
+}
+
+// D11: Usage - explicit injection
+class ProvisionInstallCommand extends Command {
+    public function __construct(
+        private readonly ContextRepository $contexts
+    ) {
+        parent::__construct();
+    }
+    
+    protected function execute(InputInterface $input, OutputInterface $output): int {
+        $site_name = $input->getArgument('site');
+        
+        // Explicit loading (no globals)
+        $site = $this->contexts->load($site_name);
+        $uri = $site->get('uri');  // Getter method
+        $platform = $this->contexts->load($site->get('platform'));
+        
+        // Save via repository
+        $this->contexts->save($site);
+        
+        return Command::SUCCESS;
+    }
+}
+
+// D11: Context is simple immutable data structure
+class Context {
+    public function __construct(
+        private readonly string $name,
+        private readonly string $type,
+        private array $data = []
+    ) {}
+    
+    public function get(string $key, mixed $default = null): mixed {
+        return $this->data[$key] ?? $default;
+    }
+    
+    public function has(string $key): bool {
+        return isset($this->data[$key]);
+    }
+    
+    // No methods like init_server() - those moved to services
+}
+```
+
+**Migration Checklist**:
+- [x] Replace `d()` global function with `ContextRepository` injection
+- [x] Replace direct property access (`$ctx->uri`) with getters (`$ctx->get('uri')`)
+- [x] Replace `write_alias()` with `ContextRepository::save()`
+- [x] Move service initialization from context classes to ProvisionManager
+- [x] Make Context immutable (no `setProperty()`)
+- [ ] Document Context data schema for each type
+
+### Service Layer Refactoring
+
+**D7 Service Pattern**:
+
+```php
+// D7: db/db.drush.inc - Service registration hook
+function db_provision_services() {
+  return array('db' => 'mysql');
+}
+
+// D7: db/Provision/Service/db/mysql.php - Service class
+class Provision_Service_db_mysql extends Provision_Service_db_pdo {
+  public $PDO_type = 'mysql';
+  
+  function create_database() {
+    return $this->query("CREATE DATABASE `%s`", d()->creds['db_name']);
+  }
+  
+  function grant_privileges() {
+    return $this->query("GRANT ALL ON `%s`.* TO '%s'@'%s'",
+      d()->creds['db_name'], d()->creds['db_user'], '%');
+  }
+  
+  // Invoked via context
+  function verify() {
+    $this->create_database();
+    $this->grant_privileges();
+  }
+}
+
+// D7: Usage via context service subscription
+d('@site')->service('db')->verify();
+
+// D7: db/install.provision.inc - Hook implementation
+function drush_provision_mysql_pre_provision_install($url) {
+  d()->service('db')->create_site_database();
+  d()->service('db')->grant_privileges();
+}
+```
+
+**D11 Service Pattern**:
+
+```php
+// D11: src/Service/Db/MySqlService.php - Service class
+namespace Aegir\Provision\Service\Db;
+
+use Aegir\Provision\Core\{Context, ProcessRunner};
+
+class MySqlService {
+    public function __construct(
+        private readonly ProcessRunner $runner
+    ) {}
+    
+    public function ensureDatabase(string $name, string $user, string $passwd): void {
+        // Use mysql CLI client instead of PDO
+        $this->runner->run([
+            'mysql', '-u', 'root', '-e',
+            "CREATE DATABASE IF NOT EXISTS `{$name}` 
+             CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci"
+        ]);
+    }
+    
+    public function grant(string $db_name, string $db_user): void {
+        $this->runner->run([
+            'mysql', '-u', 'root', '-e',
+            "GRANT ALL PRIVILEGES ON `{$db_name}`.* TO '{$db_user}'@'localhost'"
+        ]);
+    }
+    
+    public function dump(string $db_name, string $output_file): void {
+        $this->runner->run([
+            'mysqldump',
+            '--single-transaction',
+            '--opt',
+            $db_name,
+            '--result-file=' . $output_file
+        ]);
+    }
+}
+
+// D11: No service registration hook, explicit injection
+// src/ProvisionManager.php - Service orchestration
+class ProvisionManager {
+    public function __construct(
+        private readonly ContextRepository $contexts,
+        private readonly MySqlService $db,
+        private readonly ApacheService $http
+    ) {}
+    
+    public function install(string $site_name): void {
+        $site = $this->contexts->load($site_name);
+        
+        // Explicit service calls (no hooks)
+        $this->db->ensureDatabase(
+            $site->get('db_name'),
+            $site->get('db_user'),
+            $site->get('db_passwd')
+        );
+        $this->db->grant($site->get('db_name'), $site->get('db_user'));
+    }
+}
+```
+
+**Key Architectural Differences**:
+
+| Aspect | D7 Approach | D11 Approach |
+|--------|-------------|--------------|
+| Service Discovery | `hook_provision_services()` | Constructor injection |
+| Service Access | `d()->service('db')` | `$this->db` property |
+| Command Execution | PDO queries | Shell commands via ProcessRunner |
+| Hook Invocation | `drush_command_invoke_all()` | Explicit method calls |
+| Error Handling | `drush_set_error()` | Exceptions |
+| Configuration | Context properties | Injected dependencies |
+
+**Migration Steps**:
+1. Convert service registration hooks to DI configuration
+2. Replace `d()->service()` pattern with injected properties
+3. Replace PDO operations with CLI client commands
+4. Move hook implementations to service methods
+5. Update error handling to use exceptions
+6. Register services in `ProvisionServiceRegistry`
+
+### Hook System Migration
+
+**D7 Hook Pattern** (extensive hook system):
+
+```php
+// D7: Multiple files implement hooks for each command
+
+// platform/install.provision.inc
+function drush_provision_drupal_provision_install() {
+  // Platform operations
+  drush_log("Installing on platform");
+  d()->write_alias();
+}
+
+// db/install.provision.inc
+function drush_provision_mysql_pre_provision_install($url) {
+  drush_log("Creating database");
+  d()->service('db')->create_site_database();
+}
+
+// http/install.provision.inc
+function drush_provision_apache_provision_install() {
+  drush_log("Creating vhost");
+  d()->service('http')->create_config('site');
+  d()->service('http')->restart();
+}
+
+// provision.drush.inc - Hook dispatcher
+function drush_provision_install() {
+  // Validate phase
+  drush_command_invoke_all('provision_install_validate');
+  if (drush_get_error()) {
+    return FALSE;
+  }
+  
+  // Pre phase
+  drush_command_invoke_all('pre_provision_install');
+  
+  // Main phase
+  drush_command_invoke_all('provision_install');
+  
+  // Post phase
+  drush_command_invoke_all('post_provision_install');
+}
+
+// Hooks discovered automatically by Drush
+// Order controlled by module weight
+```
+
+**D11 Pattern** (explicit orchestration):
+
+```php
+// D11: No hook system, explicit service orchestration
+
+// src/Drush/Commands/ProvisionInstallCommand.php
+namespace Aegir\Provision\Drush\Commands;
+
+#[AsCommand(name: 'provision:install')]
+class ProvisionInstallCommand extends Command {
+    use ProvisionAutowireTrait;
+    
+    public function __construct(
+        private readonly ProvisionManager $manager,
+        private readonly LoggerInterface $logger
+    ) {
+        parent::__construct();
+    }
+    
+    protected function execute(InputInterface $input, OutputInterface $output): int {
+        $site = $input->getArgument('site');
+        
+        try {
+            // Single orchestrated method call
+            $this->manager->install($site);
+            $this->logger->success("Installed: $site");
+            return Command::SUCCESS;
+        }
+        catch (\Exception $e) {
+            $this->logger->error("Install failed: " . $e->getMessage());
+            return Command::FAILURE;
+        }
+    }
+}
+
+// src/ProvisionManager.php - Explicit orchestration
+namespace Aegir\Provision;
+
+class ProvisionManager {
+    public function __construct(
+        private readonly ContextRepository $contexts,
+        private readonly MySqlService $db,
+        private readonly ApacheService $http,
+        private readonly SettingsWriter $drupal,
+        private readonly ProcessRunner $runner,
+        private readonly LoggerInterface $logger
+    ) {}
+    
+    public function install(string $site_name): void {
+        $site = $this->contexts->load($site_name);
+        $platform = $this->contexts->load($site->get('platform'));
+        $server = $this->contexts->load($site->get('server'));
+        
+        // Validate (explicit, throws on failure)
+        $this->validateInstall($site, $platform);
+        
+        // Pre-install operations
+        $this->logger->info("Creating database");
+        $this->db->ensureDatabase(
+            $site->get('db_name'),
+            $site->get('db_user'),
+            $site->get('db_passwd')
+        );
+        $this->db->grant($site->get('db_name'), $site->get('db_user'));
+        
+        // Generate settings.php
+        $this->logger->info("Generating settings.php");
+        $this->drupal->writeSettings($site, $platform);
+        
+        // Generate vhost
+        $this->logger->info("Creating vhost");
+        $this->http->createSiteVhost($site, $platform, $server);
+        
+        // Run Drupal site install
+        $this->logger->info("Installing Drupal");
+        $this->runner->run([
+            'drush',
+            'site:install',
+            $site->get('profile', 'standard'),
+            '--root=' . $platform->get('root'),
+            '--site-name=' . $site->get('uri'),
+            '--db-url=mysql://' . $site->get('db_user') . ':'
+                . $site->get('db_passwd') . '@localhost/'
+                . $site->get('db_name'),
+        ]);
+        
+        // Post-install operations
+        $this->logger->info("Restarting web server");
+        $this->http->restart($server);
+    }
+    
+    private function validateInstall(Context $site, Context $platform): void {
+        if (!$platform->has('root')) {
+            throw new \RuntimeException("Platform has no root defined");
+        }
+        
+        if (!is_dir($platform->get('root'))) {
+            throw new \RuntimeException("Platform root does not exist");
+        }
+    }
+}
+```
+
+**Hook Replacement Strategy**:
+
+| D7 Hook Pattern | D11 Replacement | Migration Notes |
+|-----------------|-----------------|-----------------|
+| `hook_drush_command()` | `#[AsCommand]` class | One command class per file |
+| `hook_provision_services()` | Constructor injection | Services registered in ProvisionServiceRegistry |
+| `hook_provision_*_validate()` | Validation methods in manager | Throw exceptions on failure |
+| `hook_pre_provision_*()` | Method calls before main logic | Explicit order in ProvisionManager |
+| `hook_provision_*()` | Service method calls | Direct service invocation |
+| `hook_post_provision_*()` | Method calls after main logic | Cleanup in manager |
+| `hook_provision_*_rollback()` | try/catch with cleanup | Exception handling |
+| `drush_command_invoke_all()` | Method calls | No dynamic dispatch |
+| `drush_set_error()` | throw Exception | Exception-based errors |
+
+**Benefits of D11 Approach**:
+- ✅ Clear execution order (no hook weight issues)
+- ✅ Type-safe method calls (no string-based dispatch)
+- ✅ IDE autocomplete and refactoring support
+- ✅ Easier debugging (explicit call stack)
+- ✅ Testable (mock services, not hooks)
+- ✅ No global state (`d()` function eliminated)
+
+**Challenges**:
+- ❌ **CRITICAL: No extension system** - Third-party hooks/extensions cannot be implemented without a formal extension API
+- ⚠️ More verbose (explicit orchestration code)
+- ⚠️ Breaking change (D7 extensions won't work)
+
+**Required Extension Points** (must be implemented):
+- **Event system using Symfony EventDispatcher** - For lifecycle hooks (validate, pre, post, rollback)
+- **Plugin system for service implementations** - For custom HTTP/DB/other services
+- **Service tags and discovery** - Auto-registration of third-party services
+- **Middleware pattern for command processing** - Request/response interceptors
+
+---
+
+### Migration Priority Assessment
+
+**Completed Features** (D11 has these working):
+1. ✅ All core commands (save, verify, install, backup, restore, etc.)
+2. ✅ Context system (Context, ContextRepository, AliasStore)
+3. ✅ MySQL service (database operations via CLI client)
+4. ✅ Apache service (vhost generation and management)
+5. ✅ Settings.php generation
+6. ✅ SSL certificate management
+7. ✅ Template rendering system
+8. ✅ Process execution (ProcessRunner)
+9. ✅ Filesystem operations
+10. ✅ Drush 13.7+ command structure
+
+**Missing Features** (D7 had, D11 doesn't yet):
+1. 📋 **Nginx service** - D7 had full Nginx support (low priority/optional)
+2. 📋 **Cluster/Pack services** - Multi-webserver configurations (low priority/optional)
+3. 📋 **Remote server support** - SSH/rsync for remote operations (low priority/optional)
+4. 📋 **provision-backup-delete** - Delete backup files (low priority/optional)
+5. ⚠️ **Comprehensive testing** - D7 had minimal tests, D11 needs more (clear todo)
+6. ❌ **Drush make integration** - Will NOT be implemented. D11 version supports: a) manual builds, and b) Composer projects from git repositories (GitHub, GitLab, etc.)
+7. 📋 **Platform locking UI integration** - Frontend coordination (low priority/optional)
+
+**Architecture Improvements in D11**:
+1. ✅ Modern PHP 8.3+ (strict types, readonly properties, attributes)
+2. ✅ Proper dependency injection (no globals)
+3. ✅ Exception-based error handling
+4. ✅ Immutable context objects
+5. ✅ Composer PSR-4 autoloading
+6. ✅ Symfony components (Process, Filesystem, Yaml)
+7. ✅ One command per file (better organization)
+8. ✅ Explicit service orchestration (no magic hooks)
+
+**Regression Risks**:
+- ⚠️ No remote server support yet (SSH operations)
+- ⚠️ Only Apache (no Nginx alternative)
+- ⚠️ Limited testing coverage
+- ⚠️ No extension system for third parties
+
+**Recommended Next Steps**:
+1. **High Priority**: Add comprehensive test suite (unit + integration)
+2. **High Priority**: Document Context data schemas
+3. **Medium Priority**: Implement Nginx service
+4. **Medium Priority**: Add remote server support (SSH/rsync)
+5. **Low Priority**: Cluster/Pack multi-webserver support
+6. **Low Priority**: provision-backup-delete command
+
+---
+
+## Summary: D7 to D11 Refactoring Complete
+
+### What Changed
+
+**Architecture Paradigm Shift**:
+- D7: Procedural hooks + global state → D11: OOP + dependency injection
+- D7: Dynamic hook dispatch → D11: Explicit method calls
+- D7: `*.provision.inc` files → D11: Service classes
+- D7: `hook_drush_command()` → D11: `#[AsCommand]` attributes
+- D7: PDO database → D11: CLI client commands
+- D7: Drush 8 patterns → D11: Symfony Console patterns
+
+**Code Organization**:
+- D7: Mixed procedural/OOP → D11: Pure OOP
+- D7: Scattered hooks → D11: Centralized orchestration
+- D7: Module-based extensions → D11: Service-based architecture
+- D7: `d()` global function → D11: ContextRepository injection
+
+**Developer Experience**:
+- D7: String-based APIs → D11: Type-safe interfaces
+- D7: Runtime hook discovery → D11: Compile-time resolution
+- D7: Implicit execution order → D11: Explicit control flow
+- D7: Limited IDE support → D11: Full IDE integration
+
+### What Stayed the Same
+
+**Core Concepts Preserved**:
+1. ✅ Context model (server, platform, site)
+2. ✅ YAML alias storage format
+3. ✅ Service separation (http, db, ssl)
+4. ✅ Template-based config generation
+5. ✅ Backup/restore workflows
+6. ✅ Migration patterns
+7. ✅ Directory structures (vhost.d/, disabled.d/, etc.)
+8. ✅ Command names and purposes
+
+**Operational Compatibility**:
+- ✅ Backup format compatible
+- ✅ YAML aliases readable by both versions
+- ✅ Apache config format unchanged
+- ✅ MySQL operations equivalent
+- ✅ Settings.php structure similar
+
+### Migration Path for Users
+
+**For Aegir Operators**:
+1. Commands have same names (may need namespace: `provision:install` vs `provision-install`)
+2. Context aliases compatible between versions
+3. Backup files compatible
+4. Can run both D7 and D11 side-by-side (different directories)
+
+**For Developers/Contributors**:
+1. Read this document to understand architectural changes
+2. Study `src/ProvisionManager.php` for orchestration patterns
+3. Review command implementations in `src/Drush/Commands/`
+4. Follow Drush 13.7+ conventions: https://www.drush.org/13.x/
+5. Use dependency injection, not global state
+6. Write unit tests for new features
+
+**For Extension Authors**:
+- ⚠️ D7 provision extensions (via hooks) won't work in D11
+- ⚠️ Need to create D11-native service implementations
+- ❌ **No hook/extension system available currently** - This is a **MUST-HAVE feature** that needs to be implemented to allow third-party extensions (custom services, validation logic, post-processing hooks, etc.)
+- ⚠️ Until extension system is implemented, consider contributing to core
+
+### Success Criteria Met
+
+✅ **All D7 commands documented** in [provision-d7.md](provision-d7.md)
+✅ **Refactoring strategy defined** in this section
+✅ **Architecture comparison complete** (D7 patterns vs D11 patterns)
+✅ **Migration matrix created** (command-by-command status)
+✅ **Code examples provided** for each pattern transformation
+✅ **Priority assessment complete** (what's done, what's missing)
+
+**Next Phase**: Implementation validation and testing.
+

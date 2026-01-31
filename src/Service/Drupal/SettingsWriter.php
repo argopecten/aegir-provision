@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Aegir\ProvisionD11\Service\Drupal;
+namespace Aegir\Provision\Service\Drupal;
 
-use Aegir\ProvisionD11\Config\TemplateRenderer;
-use Aegir\ProvisionD11\Core\Filesystem;
+use Aegir\Provision\Config\TemplateRenderer;
+use Aegir\Provision\Core\Filesystem;
+use Aegir\Provision\Core\ValueObject\DatabaseCredentials;
 
 final class SettingsWriter {
   private Filesystem $filesystem;
@@ -17,10 +18,9 @@ final class SettingsWriter {
   }
 
   /**
-   * @param array<string,mixed> $db
    * @param array<string,mixed> $options
    */
-  public function write(string $docroot, string $sitePath, array $db, array $options = []): void {
+  public function write(string $docroot, string $sitePath, DatabaseCredentials $db, array $options = []): void {
     $this->filesystem->ensureDir($sitePath, 0755);
     $filesPath = $sitePath . '/files';
     $privatePath = $options['private_path'] ?? $sitePath . '/private';
@@ -36,7 +36,7 @@ final class SettingsWriter {
     $configSync = (string) ($options['config_sync_directory'] ?? ($docroot . '/../config/sync'));
 
     $vars = [
-      'db' => $db,
+      'db' => $db->toArray(),
       'hash_salt' => $hashSalt,
       'private_path' => $privatePath,
       'config_sync_directory' => $configSync,

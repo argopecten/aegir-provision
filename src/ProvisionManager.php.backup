@@ -2,41 +2,80 @@
 
 declare(strict_types=1);
 
-namespace Aegir\ProvisionD11\Provision;
+namespace Aegir\Provision;
 
-use Aegir\ProvisionD11\Config\TemplateRenderer;
-use Aegir\ProvisionD11\Core\ConfigPaths;
-use Aegir\ProvisionD11\Core\Context;
-use Aegir\ProvisionD11\Core\ContextRepository;
-use Aegir\ProvisionD11\Core\ContextType;
-use Aegir\ProvisionD11\Core\Filesystem;
-use Aegir\ProvisionD11\Core\PlatformRoot;
-use Aegir\ProvisionD11\Core\ProcessRunner;
-use Aegir\ProvisionD11\Service\Db\MySqlService;
-use Aegir\ProvisionD11\Service\Drupal\SettingsWriter;
-use Aegir\ProvisionD11\Service\Http\ApacheService;
-use Aegir\ProvisionD11\Service\Ssl\SslManager;
+use Aegir\Provision\Core\Context;
+use Aegir\Provision\Core\ContextRepository;
+use Aegir\Provision\Core\Filesystem;
+use Aegir\Provision\Core\ProcessRunner;
+use Aegir\Provision\Config\TemplateRenderer;
+use Aegir\Provision\Manager\BackupRestoreManager;
+use Aegir\Provision\Manager\CloneManager;
+use Aegir\Provision\Manager\ContextLoader;
+use Aegir\Provision\Manager\DatabaseManager;
+use Aegir\Provision\Manager\DeleteManager;
+use Aegir\Provision\Manager\InstallationManager;
+use Aegir\Provision\Manager\LockManager;
+use Aegir\Provision\Manager\MigrationManager;
+use Aegir\Provision\Manager\PathResolver;
+use Aegir\Provision\Manager\VerificationManager;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 final class ProvisionManager {
   private ContextRepository $contexts;
-  private Filesystem $filesystem;
-  private ProcessRunner $runner;
-  private TemplateRenderer $templates;
   private LoggerInterface $logger;
+  private InstallationManager $installationManager;
+  private VerificationManager $verificationManager;
+  private DeleteManager $deleteManager;
+  private BackupRestoreManager $backupRestoreManager;
+  private CloneManager $cloneManager;
+  private MigrationManager $migrationManager;
+  private LockManager $lockManager;
 
   public function __construct(
     ContextRepository $contexts,
     Filesystem $filesystem,
     ProcessRunner $runner,
     TemplateRenderer $templates,
-    LoggerInterface $logger
+    LoggerInterface $logger,
+    EventDispatcherInterface $dispatcher
   ) {
     $this->contexts = $contexts;
-    $this->filesystem = $filesystem;
-    $this->runner = $runner;
-    $this->templates = $templates;
     $this->logger = $logger;
+
+    // Initialize shared utilities
+    $loader = new ContextLoader($contexts);
+    $pathResolver = new PathResolver();
+    $dbManager = new DatabaseManager($runner);
+
+    // Initialize specialized managers
+    $this->installationManager = new InstallationManager(
+      $contexts, $filesystem, $runner, $templates, $logger, $dispatcher,
+      $loader, $pathResolver, $dbManager
+    );
+    $this->verificationManager = new VerificationManager(
+      $contexts, $filesystem, $runner, $templates, $logger, $dispatcher,
+      $loader, $pathResolver, $dbManager
+    );
+    $this->deleteManager = new DeleteManager(
+      $contexts, $filesystem, $runner, $templates, $logger, $dispatcher,
+      $loader, $pathResolver, $dbManager
+    );
+    $this->backupRestoreManager = new BackupRestoreManager(
+      $contexts, $filesystem, $runner, $logger,
+      $loader, $pathResolver, $dbManager
+    );
+    $this->cloneManager = new CloneManager(
+      $contexts, $filesystem, $runner, $templates, $logger,
+      $loader, $pathResolver, $dbManager
+    );
+    $this->migrationManager = new MigrationManager(
+      $contexts, $logger, $this->verificationManager, $this->installationManager
+    );
+    $this->lockManager = new LockManager(
+      $contexts, $filesystem, $logger, $loader, $pathResolver
+    );
   }
 
   /**
@@ -99,25 +138,46 @@ final class ProvisionManager {
     $site = $context;
     $platform = $this->loadPlatform($site);
     $server = $this->loadServer($platform, $site);
-    if (!$site->get('uri')) {
-      $site->set('uri', $site->name());
+
+    try {
+      // Dispatch VALIDATE event
+      $event = new InstallEvent('validate', $site, $platform, $server);
+      $this->dispatcher->dispatch($event, ProvisionEvents::VALIDATE_INSTALL);
+
+      // Dispatch BEFORE event
+      $event = new InstallEvent('before', $site, $platform, $server);
+      $this->dispatcher->dispatch($event, ProvisionEvents::BEFORE_INSTALL);
+
+      if (!$site->get('uri')) {
+        $site->set('uri', $site->name());
+      }
+      $docroot = $this->resolveDocroot($platform);
+
+      $dbServer = $this->loadDbServer($site, $server);
+      $db = $this->ensureSiteDatabase($site, $dbServer);
+      $site->set('root', $docroot);
+      $this->contexts->save($site);
+
+      $settingsWriter = new SettingsWriter($this->filesystem, $this->templates);
+      $sitePath = $this->resolveSitePath($site, $docroot);
+      $settingsWriter->write($docroot, $sitePath, $db, [
+        'trusted_host' => $site->get('uri'),
+      ]);
+
+      $this->runDrushInstall($site, $docroot);
+      $this->enable($site->name());
+      $this->logger->info('Installed site {context}.', ['context' => $site->name()]);
+
+      // Dispatch AFTER event
+      $event = new InstallEvent('after', $site, $platform, $server);
+      $this->dispatcher->dispatch($event, ProvisionEvents::AFTER_INSTALL);
+
+    } catch (\Exception $e) {
+      // Dispatch ROLLBACK event
+      $event = new InstallEvent('rollback', $site, $platform, $server, ['exception' => $e]);
+      $this->dispatcher->dispatch($event, ProvisionEvents::ROLLBACK_INSTALL);
+      throw $e;
     }
-    $docroot = $this->resolveDocroot($platform);
-
-    $dbServer = $this->loadDbServer($site, $server);
-    $db = $this->ensureSiteDatabase($site, $dbServer);
-    $site->set('root', $docroot);
-    $this->contexts->save($site);
-
-    $settingsWriter = new SettingsWriter($this->filesystem, $this->templates);
-    $sitePath = $this->resolveSitePath($site, $docroot);
-    $settingsWriter->write($docroot, $sitePath, $db, [
-      'trusted_host' => $site->get('uri'),
-    ]);
-
-    $this->runDrushInstall($site, $docroot);
-    $this->enable($site->name());
-    $this->logger->info('Installed site {context}.', ['context' => $site->name()]);
   }
 
   public function enable(string $contextName): void {
@@ -161,6 +221,15 @@ final class ProvisionManager {
 
   public function delete(string $contextName, bool $deleteFiles, bool $deleteDb): void {
     $context = $this->contexts->load($contextName);
+
+    // Dispatch VALIDATE event
+    $event = new DeleteEvent('validate', $context, $deleteDb, $deleteFiles);
+    $this->dispatcher->dispatch($event, ProvisionEvents::VALIDATE_DELETE);
+
+    // Dispatch BEFORE event
+    $event = new DeleteEvent('before', $context, $deleteDb, $deleteFiles);
+    $this->dispatcher->dispatch($event, ProvisionEvents::BEFORE_DELETE);
+
     if ($context->type() === ContextType::SITE) {
       $platform = $this->loadPlatform($context);
       $server = $this->loadServer($platform, $context);
@@ -191,6 +260,10 @@ final class ProvisionManager {
 
     $this->contexts->delete($contextName);
     $this->logger->info('Deleted context {context}.', ['context' => $contextName]);
+
+    // Dispatch AFTER event
+    $event = new DeleteEvent('after', $context, $deleteDb, $deleteFiles);
+    $this->dispatcher->dispatch($event, ProvisionEvents::AFTER_DELETE);
   }
 
   public function backup(string $contextName, ?string $backupFile): string {

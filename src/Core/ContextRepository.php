@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Aegir\ProvisionD11\Core;
+namespace Aegir\Provision\Core;
 
 final class ContextRepository {
   private AliasStore $aliasStore;
