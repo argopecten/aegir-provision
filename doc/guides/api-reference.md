@@ -681,38 +681,38 @@ All events extend `ProvisionEvent`:
 
 ## Drush Package
 
-**Location**: `Aegir\Provision\Drush`  
+**Location**: `src/Drush`  
 **Purpose**: Drush 13 command integration and service registration
 
 **Detailed docs**: [src/Drush/doc/README.md](../../src/Drush/doc/README.md)
 
 ### Available Commands
 
-All commands are in `Aegir\Provision\Drush\Commands` namespace:
+Target command namespace: `Drush\Commands\provision` (legacy code may still use `Aegir\Provision\Drush\Commands`).
 
 **Context Management**:
-- `ProvisionSaveCommand` - `provision:save` - Save or update context
-- `ProvisionVerifyCommand` - `provision:verify` - Verify configuration
-- `ProvisionDeleteCommand` - `provision:delete` - Delete context
+- `ProvisionSaveCommands` - `provision:save` - Save or update context
+- `ProvisionVerifyCommands` - `provision:verify` - Verify configuration
+- `ProvisionDeleteCommands` - `provision:delete` - Delete context
 
 **Site Operations**:
-- `ProvisionInstallCommand` - `provision:install` - Install new site
-- `ProvisionImportCommand` - `provision:import` - Import existing site
-- `ProvisionBackupCommand` - `provision:backup` - Create backup
-- `ProvisionRestoreCommand` - `provision:restore` - Restore from backup
-- `ProvisionDeployCommand` - `provision:deploy` - Deploy backup to site
+- `ProvisionInstallCommands` - `provision:install` - Install new site
+- `ProvisionImportCommands` - `provision:import` - Import existing site
+- `ProvisionBackupCommands` - `provision:backup` - Create backup
+- `ProvisionRestoreCommands` - `provision:restore` - Restore from backup
+- `ProvisionDeployCommands` - `provision:deploy` - Deploy backup to site
 
 **Site Lifecycle**:
-- `ProvisionMigrateCommand` - `provision:migrate` - Migrate to different platform
-- `ProvisionCloneCommand` - `provision:clone` - Clone site
-- `ProvisionEnableCommand` - `provision:enable` - Enable site
-- `ProvisionDisableCommand` - `provision:disable` - Disable site
-- `ProvisionLockCommand` - `provision:lock` - Lock site
-- `ProvisionUnlockCommand` - `provision:unlock` - Unlock site
-- `ProvisionLoginResetCommand` - `provision:login-reset` - Reset admin login
+- `ProvisionMigrateCommands` - `provision:migrate` - Migrate to different platform
+- `ProvisionCloneCommands` - `provision:clone` - Clone site
+- `ProvisionEnableCommands` - `provision:enable` - Enable site
+- `ProvisionDisableCommands` - `provision:disable` - Disable site
+- `ProvisionLockCommands` - `provision:lock` - Lock site
+- `ProvisionUnlockCommands` - `provision:unlock` - Unlock site
+- `ProvisionLoginResetCommands` - `provision:login-reset` - Reset admin login
 
 **Backend**:
-- `BackendParseCommand` - `backend:parse` - Parse backend output
+- `BackendParseCommands` - `backend:parse` - Parse backend output
 
 ### ProvisionAutowireTrait
 
@@ -722,7 +722,12 @@ Enables dependency injection in command classes.
 
 **Usage**:
 ```php
-class MyCommand extends DrushCommands
+namespace Drush\Commands\provision;
+
+use Drush\Commands\DrushCommands;
+use Drush\Attributes\Command;
+
+class MyCommands extends DrushCommands
 {
     use ProvisionAutowireTrait;
     
@@ -730,6 +735,12 @@ class MyCommand extends DrushCommands
         private readonly ProvisionManager $manager
     ) {
         parent::__construct();
+    }
+    
+    #[Command(name: 'provision:my-command', description: 'My command description')]
+    public function myCommand(): int {
+        // Command logic
+        return self::EXIT_SUCCESS;
     }
 }
 ```

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Aegir\Provision\Drush\Commands;
+namespace Drush\Commands\provision;
 
 use Aegir\Provision\Drush\ProvisionServiceRegistry;
 use Drush\Commands\AutowireTrait;

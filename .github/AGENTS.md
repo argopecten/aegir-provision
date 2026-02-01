@@ -51,14 +51,16 @@ This is the **Backend Component** - a standalone Git repository that is also a s
 - ❌ **CANNOT** access Drupal's configuration, state, or cache systems
 - ❌ **CANNOT** be enabled/disabled like a Drupal module
 
-**✅ Drush 13.7+ Migration Completed**:
-The codebase now uses **modern Drush 13.7+ patterns**:
-- ✅ Symfony Console `Command` classes with `#[AsCommand]`
-- ✅ One command per file under `src/Drush/Commands`
-- ✅ Namespace: `Aegir\Provision\Drush\Commands`
-- ✅ `ProvisionAutowireTrait` (wraps `AutowireTrait`) for constructor injection
-- ✅ `ProvisionServiceRegistry` registers Provision services in the Drush container
-- ✅ PSR-4 auto-discovery (no `drush.services.yml`)
+**⚠️ Drush 13.7+ Migration Needed**:
+The codebase currently uses raw Symfony Console and needs refactoring to **proper Drush 13.7+ patterns**:
+- ❌ Currently: Raw Symfony `Command` with `#[AsCommand]` (bypasses Drush layer)
+- ✅ Should be: `DrushCommands` base class with `#[Command]` attributes
+- ❌ Currently: `configure()` + `execute()` methods
+- ✅ Should be: Method-based commands (Drush generates `execute()` internally)
+- ✅ One command per file under `src/Drush/Commands` (correct)
+- ✅ Namespace: `Drush\Commands\provision` (correct)
+- ✅ `ProvisionAutowireTrait` for constructor injection (correct)
+- ✅ `ProvisionServiceRegistry` registers Provision services (correct)
 
 See [README.md](../README.md) for current expectations.
 

@@ -41,7 +41,7 @@ doc/
 
 ### Extension Development
 
-- **[Extension System](guides/extension-system.md)** - Creating extensions with the event system
+- **[Extension System](guides/extension-system.md)** - Events, service plugins, and Drush commands libraries
 
 ### Project Management
 
@@ -90,7 +90,7 @@ composer require argopecten/aegir-provision
 - **Context System** - Three immutable types: Server, Platform, Site
 - **Server Management** - Apache, MySQL, SSL configuration
 - **Site Operations** - Install, migrate, clone, backup, restore
-- **Extension System** - Event-based hooks for custom logic
+- **Extension System** - Events, service plugins, and command libraries
 - **Modern Architecture** - PHP 8.3+, Drush 13.7+, Symfony 7.0+
 
 ---

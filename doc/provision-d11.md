@@ -35,8 +35,8 @@ Provision is delivered as a Composer package that registers Drush commands from 
 
 Drush 13.7+ required package layout:
 - `composer.json` (type: `drupal-drush`)
-- `src/Drush/Commands/` (auto-discovered command classes in the `Aegir\Provision\Drush\Commands` namespace)
-- `src/Drush/Commands/Provision*Command.php` (one Symfony Console command per file, using `#[AsCommand]` and `ProvisionAutowireTrait`)
+- `src/Drush/Commands/` (auto-discovered command classes in the `Drush\Commands\provision` namespace)
+- `src/Drush/Commands/Provision*Commands.php` (one Drush command class per file, extending `DrushCommands`, using `#[Command]` attributes)
 - `src/Drush/Commands/ProvisionAutowireTrait.php` (wraps Drush `AutowireTrait` and registers Provision services)
 - `src/Drush/ProvisionServiceRegistry.php` (registers Provision services in the Drush container for autowiring)
 - `src/Core/*` (core infrastructure: Context, ContextRepository, ContextType, AliasStore, Filesystem, ProcessRunner, ConfigPaths, PlatformRoot)
@@ -460,12 +460,15 @@ Implemented commands:
 - `backend-parse`: Parse backend command output (legacy compatibility)
 
 Command implementation (Drush 13.7+ required):
-- All commands are Symfony Console commands using `#[AsCommand]`
-- Arguments/options defined in `configure()`, logic in `execute()`
+- All commands extend `Drush\Commands\DrushCommands` base class
+- Commands use `#[Command]` attributes for metadata (name, description, aliases)
+- Arguments/options defined with `#[Argument]` and `#[Option]` attributes on method parameters
+- Command logic in public methods (NOT `execute()` - Drush generates wrapper internally)
 - Commands accept context name (with or without `@` prefix)
+- Return `self::EXIT_SUCCESS` or `self::EXIT_FAILURE` from command methods
 - `ProvisionAutowireTrait` enables constructor-based dependency injection and registers Provision services in the Drush container
 - ProvisionManager orchestrates all task execution
-- Commands integrate with Drush logger for output
+- Commands integrate with Drush logger for output via `$this->logger()`
 
 ### Drush 13.7+ Commandfile Requirements
 
@@ -485,18 +488,22 @@ https://github.com/drush-ops/drush/tree/13.x/examples/Commands
 Code reference: `src/Drush/Commands/`
 
 ## Drush 13.7 integration (REQUIRED)
-Drush 13.7 deprecates annotated commands and requires pure Symfony Console commands for new work.
+Drush 13.7+ uses attribute-based command definitions with the `DrushCommands` base class.
 
 Required features:
 - ✅ YAML site alias storage in `~/.drush/sites/aegir/*.site.yml` (managed by AliasStore)
-- ✅ PSR-4 autoloading with `Aegir\Provision\` namespace
-- ✅ Class-based commands under `src/Drush/Commands` using `#[AsCommand]`
-- ✅ One command per class file, with `configure()` + `execute()`
+- ✅ PSR-4 autoloading with `Aegir\Provision\` namespace for core classes
+- ⚠️ Command classes under `src/Drush/Commands` in `Drush\Commands\provision` namespace
+- ⚠️ Commands extend `Drush\Commands\DrushCommands` (NOT raw Symfony Console `Command`)
+- ⚠️ Commands use `#[Command]`, `#[Argument]`, `#[Option]` attributes (NOT `#[AsCommand]`)
+- ⚠️ One command per class file, with method-based command definitions (NOT `execute()`)
 - ✅ `ProvisionAutowireTrait` for constructor-based dependency injection
 - ✅ ProcessRunner for external command execution (replaces `drush_shell_exec`)
 - ✅ Strict typing and PHP 8.3+ syntax throughout codebase
 - ✅ Context management via ContextRepository and AliasStore
 - ✅ `drush.services.yml` removed (deprecated; not used under Drush 13.7+)
+
+⚠️ = Requires refactoring from current raw Symfony Console implementation
 
 Architecture (target layout):
 - **Commands layer**: `src/Drush/Commands/*` - Symfony Console command classes
@@ -672,11 +679,12 @@ Composer package configuration:
 
 Installation:
 - Install via Composer: `composer require argopecten/aegir-provision`
-- Drush auto-discovers commands from `src/Drush/Commands` using `#[AsCommand]`
+- Drush auto-discovers commands from `src/Drush/Commands` using `DrushCommands` base class and `#[Command]` attributes
 - No Drupal module required - runs as vendor package
 
 Code organization:
 - Namespace: `Aegir\\Provision\\`
+- Commands namespace: `Drush\\Commands\\provision` for Drush command auto-discovery
 - All code uses strict types (`declare(strict_types=1);`)
 - Modern PHP 8.3+ features: attributes, constructor property promotion, readonly properties
 
@@ -684,7 +692,7 @@ Code organization:
 
 ### Completed (✅)
 - **Core architecture**: Modern PHP 8.3+ class-based design with strict types
-- **Drush 13.7+ command system**: Symfony Console commands with `#[AsCommand]`, `ProvisionAutowireTrait`, and PSR-4 auto-discovery
+- **Drush 13.7+ command infrastructure**: Command classes with `ProvisionAutowireTrait` and PSR-4 auto-discovery
 - **Context management**: Context, ContextRepository, ContextType, AliasStore
 - **YAML alias storage**: Drush site aliases in `~/.drush/sites/aegir/`
 - **Service architecture**: ApacheService, MySqlService, SettingsWriter, SslManager
@@ -797,7 +805,7 @@ Legacy Provision used procedural PHP with hooks (`provision.inc`, `Provision_*` 
 
 The D7 Provision implementation uses procedural Drush 8 patterns with hooks. The D11 implementation must modernize to:
 
-1. **Symfony Console Commands**: Replace `hook_drush_command()` arrays with `#[AsCommand]` attribute classes
+1. **Drush 13 Attribute Commands**: Replace `hook_drush_command()` arrays with `DrushCommands` base class and `#[Command]` attribute methods
 2. **Dependency Injection**: Replace global `d()` context access with constructor-injected services
 3. **Service Architecture**: Convert `Provision_Service_*` classes to modern PHP 8.3+ service classes
 4. **YAML Aliases**: Maintain compatibility with Drush alias system
@@ -896,25 +904,27 @@ class ContextRepository {
 }
 
 // D11: Usage - explicit injection
-class ProvisionInstallCommand extends Command {
+class ProvisionInstallCommands extends DrushCommands {
+    use ProvisionAutowireTrait;
+    
     public function __construct(
         private readonly ContextRepository $contexts
     ) {
         parent::__construct();
     }
     
-    protected function execute(InputInterface $input, OutputInterface $output): int {
-        $site_name = $input->getArgument('site');
-        
+    #[Command(name: 'provision:install')]
+    #[Argument(name: 'site', description: 'Site context name')]
+    public function install(string $site): int {
         // Explicit loading (no globals)
-        $site = $this->contexts->load($site_name);
-        $uri = $site->get('uri');  // Getter method
-        $platform = $this->contexts->load($site->get('platform'));
+        $siteContext = $this->contexts->load($site);
+        $uri = $siteContext->get('uri');  // Getter method
+        $platform = $this->contexts->load($siteContext->get('platform'));
         
         // Save via repository
-        $this->contexts->save($site);
+        $this->contexts->save($siteContext);
         
-        return Command::SUCCESS;
+        return self::EXIT_SUCCESS;
     }
 }
 
@@ -1122,11 +1132,16 @@ function drush_provision_install() {
 ```php
 // D11: No hook system, explicit service orchestration
 
-// src/Drush/Commands/ProvisionInstallCommand.php
-namespace Aegir\Provision\Drush\Commands;
+// src/Drush/Commands/ProvisionInstallCommands.php
+namespace Drush\Commands\provision;
 
-#[AsCommand(name: 'provision:install')]
-class ProvisionInstallCommand extends Command {
+use Aegir\Provision\ProvisionManager;
+use Drush\Commands\DrushCommands;
+use Drush\Attributes\Command;
+use Drush\Attributes\Argument;
+use Psr\Log\LoggerInterface;
+
+class ProvisionInstallCommands extends DrushCommands {
     use ProvisionAutowireTrait;
     
     public function __construct(
@@ -1136,18 +1151,18 @@ class ProvisionInstallCommand extends Command {
         parent::__construct();
     }
     
-    protected function execute(InputInterface $input, OutputInterface $output): int {
-        $site = $input->getArgument('site');
-        
+    #[Command(name: 'provision:install', description: 'Install a Drupal site')]
+    #[Argument(name: 'site', description: 'Site context name')]
+    public function install(string $site): int {
         try {
             // Single orchestrated method call
             $this->manager->install($site);
-            $this->logger->success("Installed: $site");
-            return Command::SUCCESS;
+            $this->logger()->success("Installed: $site");
+            return self::EXIT_SUCCESS;
         }
         catch (\Exception $e) {
-            $this->logger->error("Install failed: " . $e->getMessage());
-            return Command::FAILURE;
+            $this->logger()->error("Install failed: " . $e->getMessage());
+            return self::EXIT_FAILURE;
         }
     }
 }
@@ -1224,7 +1239,7 @@ class ProvisionManager {
 
 | D7 Hook Pattern | D11 Replacement | Migration Notes |
 |-----------------|-----------------|-----------------|
-| `hook_drush_command()` | `#[AsCommand]` class | One command class per file |
+| `hook_drush_command()` | `DrushCommands` + `#[Command]` | One command class per file with method-based commands |
 | `hook_provision_services()` | Constructor injection | Services registered in ProvisionServiceRegistry |
 | `hook_provision_*_validate()` | Validation methods in manager | Throw exceptions on failure |
 | `hook_pre_provision_*()` | Method calls before main logic | Explicit order in ProvisionManager |

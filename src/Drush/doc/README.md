@@ -9,7 +9,7 @@
 
 The Drush package provides integration with Drush 13.7+:
 
-- **Commands** - Symfony Console commands for all provision operations
+- **Commands** - Drush 13.7+ command classes for all provision operations
 - **Service Registry** - Registers Provision services in Drush container
 - **Autowire Trait** - Dependency injection for commands
 
@@ -37,10 +37,10 @@ public static function register(ContainerInterface $container): void
 - `ProvisionManager` - Main orchestrator
 
 **Usage**:
-Called automatically by Drush during bootstrap via `drush.services.yml`.
+Called during Drush bootstrap by `ProvisionAutowireTrait`.
 
 **Why Needed**:
-Drush 13 doesn't use Drupal's container. Services must be explicitly registered for autowiring in command classes.
+Provision services must be explicitly registered for autowiring in command classes (Drush uses its own container).
 
 ---
 
@@ -48,7 +48,7 @@ Drush 13 doesn't use Drupal's container. Services must be explicitly registered 
 
 **Location**: `src/Drush/Commands/`
 
-All provision commands are Symfony Console commands with Drush integration.
+All provision commands are Drush 13.7+ command classes using method-level attributes.
 
 ### Command Pattern
 
@@ -57,14 +57,14 @@ Each command follows this structure:
 ```php
 <?php
 
-namespace Aegir\Provision\Drush\Commands;
+namespace Drush\Commands\provision;
 
 use Aegir\Provision\ProvisionManager;
 use Drush\Commands\DrushCommands;
-use Symfony\Component\Console\Command\Command;
+use Drush\Attributes\Command;
+use Drush\Attributes\Argument;
 
-#[AsCommand(name: 'provision:install')]
-class ProvisionInstallCommand extends DrushCommands
+class ProvisionInstallCommands extends DrushCommands
 {
     use ProvisionAutowireTrait;
     
@@ -76,18 +76,12 @@ class ProvisionInstallCommand extends DrushCommands
         $this->manager = $manager;
     }
     
-    protected function configure(): void
+    #[Command(name: 'provision:install', description: 'Install a Drupal site')]
+    #[Argument(name: 'site', description: 'Site context name')]
+    public function install(string $site): int
     {
-        $this
-            ->setDescription('Install a Drupal site')
-            ->addArgument('site', InputArgument::REQUIRED, 'Site context name');
-    }
-    
-    protected function execute(InputInterface $input, OutputInterface $output): int
-    {
-        $siteName = $input->getArgument('site');
-        $this->manager->install($siteName);
-        return Command::SUCCESS;
+        $this->manager->install($site);
+        return self::EXIT_SUCCESS;
     }
 }
 ```
@@ -95,28 +89,28 @@ class ProvisionInstallCommand extends DrushCommands
 ### Available Commands
 
 #### Context Management
-- **ProvisionSaveCommand** - `provision:save` - Save or update context
-- **ProvisionVerifyCommand** - `provision:verify` - Verify configuration
-- **ProvisionDeleteCommand** - `provision:delete` - Delete context
+- **ProvisionSaveCommands** - `provision:save` - Save or update context
+- **ProvisionVerifyCommands** - `provision:verify` - Verify configuration
+- **ProvisionDeleteCommands** - `provision:delete` - Delete context
 
 #### Site Operations
-- **ProvisionInstallCommand** - `provision:install` - Install new site
-- **ProvisionImportCommand** - `provision:import` - Import existing site
-- **ProvisionBackupCommand** - `provision:backup` - Create backup
-- **ProvisionRestoreCommand** - `provision:restore` - Restore from backup
-- **ProvisionDeployCommand** - `provision:deploy` - Deploy backup to site
+- **ProvisionInstallCommands** - `provision:install` - Install new site
+- **ProvisionImportCommands** - `provision:import` - Import existing site
+- **ProvisionBackupCommands** - `provision:backup` - Create backup
+- **ProvisionRestoreCommands** - `provision:restore` - Restore from backup
+- **ProvisionDeployCommands** - `provision:deploy` - Deploy backup to site
 
 #### Site Lifecycle
-- **ProvisionMigrateCommand** - `provision:migrate` - Migrate to different platform
-- **ProvisionCloneCommand** - `provision:clone` - Clone site
-- **ProvisionEnableCommand** - `provision:enable` - Enable site
-- **ProvisionDisableCommand** - `provision:disable` - Disable site
-- **ProvisionLockCommand** - `provision:lock` - Lock site
-- **ProvisionUnlockCommand** - `provision:unlock` - Unlock site
-- **ProvisionLoginResetCommand** - `provision:login-reset` - Reset admin login
+- **ProvisionMigrateCommands** - `provision:migrate` - Migrate to different platform
+- **ProvisionCloneCommands** - `provision:clone` - Clone site
+- **ProvisionEnableCommands** - `provision:enable` - Enable site
+- **ProvisionDisableCommands** - `provision:disable` - Disable site
+- **ProvisionLockCommands** - `provision:lock` - Lock site
+- **ProvisionUnlockCommands** - `provision:unlock` - Unlock site
+- **ProvisionLoginResetCommands** - `provision:login-reset` - Reset admin login
 
 #### Backend Commands
-- **BackendParseCommand** - `backend:parse` - Parse backend output
+- **BackendParseCommands** - `backend:parse` - Parse backend output
 
 ---
 
@@ -133,7 +127,7 @@ Provides dependency injection support for command classes.
 
 **Usage**:
 ```php
-class MyCommand extends DrushCommands
+class MyCommands extends DrushCommands
 {
     use ProvisionAutowireTrait;
     
@@ -154,39 +148,26 @@ class MyCommand extends DrushCommands
 
 Commands are auto-discovered when:
 1. Located in `src/Drush/Commands/` directory
-2. Use `#[AsCommand]` attribute
-3. Implement `configure()` and `execute()` methods
-4. Package installed via Composer
+2. Extend `Drush\Commands\DrushCommands` base class
+3. Use `#[Command]` attribute on public methods
+4. Filename ends with `*Commands.php`
+5. Use `Drush\Commands\provision` namespace
+6. Package installed via Composer
 
 ### Namespace Rules
 
-Commands must use `Aegir\Provision\Drush\Commands` namespace, not `Drush\Commands`.
+For Drush 13.7+ site-wide command discovery, commands must use `Drush\Commands\provision` namespace.
 
 **Correct**:
 ```php
-namespace Aegir\Provision\Drush\Commands;
+namespace Drush\Commands\provision;
 ```
 
-**Incorrect**:
-```php
-namespace Drush\Commands;  // Only for site-wide commands
-```
+**Note**: Core Aegir Provision classes use `Aegir\Provision` namespace, but Drush commands must be in `Drush\Commands` namespace for auto-discovery.
 
 ### Service Registration
 
-Services must be registered in `drush.services.yml`:
-
-```yaml
-services:
-  _defaults:
-    autowire: true
-    autoconfigure: true
-    
-  provision.service_registry:
-    class: Aegir\Provision\Drush\ProvisionServiceRegistry
-    tags:
-      - { name: service_subscriber }
-```
+Services are registered via `ProvisionAutowireTrait` during Drush bootstrap (no `drush.services.yml` in Drush 13.7+). The trait overrides `create()` to call `ProvisionServiceRegistry::register()` before autowiring.
 
 ---
 
@@ -196,9 +177,13 @@ services:
 
 1. **Create Command Class**:
 ```php
-// src/Drush/Commands/ProvisionMyCommand.php
-#[AsCommand(name: 'provision:my-operation')]
-class ProvisionMyCommand extends DrushCommands
+// src/Drush/Commands/ProvisionMyCommands.php
+namespace Drush\Commands\provision;
+
+use Drush\Commands\DrushCommands;
+use Drush\Attributes\Command;
+
+class ProvisionMyCommands extends DrushCommands
 {
     use ProvisionAutowireTrait;
     
@@ -207,15 +192,11 @@ class ProvisionMyCommand extends DrushCommands
         parent::__construct();
     }
     
-    protected function configure(): void
-    {
-        $this->setDescription('My operation description');
-    }
-    
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    #[Command(name: 'provision:my-operation', description: 'My operation description')]
+    public function myOperation(): int
     {
         // Implementation
-        return Command::SUCCESS;
+        return self::EXIT_SUCCESS;
     }
 }
 ```
@@ -242,22 +223,24 @@ drush provision:install @example.com
 ## Error Handling
 
 Commands should:
-- Return `Command::SUCCESS` (0) on success
-- Return `Command::FAILURE` (1) on error
+- Return `self::EXIT_SUCCESS` (0) on success
+- Return `self::EXIT_FAILURE` (1) on error
 - Let exceptions bubble up for Drush to handle
-- Use `$this->logger` for output
+- Use `$this->logger()` for output
 
 **Example**:
 ```php
-protected function execute(InputInterface $input, OutputInterface $output): int
+#[Command(name: 'provision:install')]
+#[Argument(name: 'site', description: 'Site context name')]
+public function install(string $site): int
 {
     try {
-        $this->manager->install($siteName);
-        $this->logger->success('Site installed successfully');
-        return Command::SUCCESS;
+        $this->manager->install($site);
+        $this->logger()->success('Site installed successfully');
+        return self::EXIT_SUCCESS;
     } catch (\Exception $e) {
-        $this->logger->error($e->getMessage());
-        return Command::FAILURE;
+        $this->logger()->error($e->getMessage());
+        return self::EXIT_FAILURE;
     }
 }
 ```

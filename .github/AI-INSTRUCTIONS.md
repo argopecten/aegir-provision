@@ -61,17 +61,27 @@ When making changes to the codebase:
 
 ### Drush 13 Official Documentation (AUTHORITATIVE SOURCE)
 
+### Drush 13 Official Documentation (AUTHORITATIVE SOURCE)
+
 **URL**: https://www.drush.org/13.x/
+
+**Primary Reference for Command Authoring**:
+https://www.drush.org/13.x/commands/#creating-custom-drush-commands
+
+**Site-Wide Commands** (Drush 13.7+):
+https://www.drush.org/13.7.1/commands/#site-wide-commands
 
 This is the **authoritative source** for all Drush 13 functionality. When working with Drush commands, APIs, attributes, or any Drush-related code in this project, you MUST analyze and incorporate guidance from the official Drush documentation.
 
 **Critical sections to reference**:
 
 1. **Creating Custom Commands**: https://www.drush.org/13.x/commands/#creating-custom-drush-commands
-   - **CRITICAL**: Modern Drush 13.7+ uses Symfony Console commands with `#[AsCommand]` attribute
-   - **DEPRECATED**: `DrushCommands` base class and `#[CLI\Command]` attributes (Drush 12 patterns)
-   - Command class structure: one class per command
-   - Return values: `Command::SUCCESS`, `Command::FAILURE`, `Command::INVALID`
+   - **CRITICAL**: Modern Drush 13.7+ uses `DrushCommands` base class with `#[Command]` attributes
+   - **DEPRECATED**: Raw Symfony Console `Command` class with `#[AsCommand]` (bypasses Drush command layer)
+   - **DEPRECATED**: `#[CLI\Command]` annotations (Drush 12 pattern - use `#[Command]` in Drush 13)
+   - Command class structure: one class per command with method-based command definitions
+   - Return values: `self::EXIT_SUCCESS`, `self::EXIT_FAILURE`
+   - Drush generates Symfony Console `execute()` wrapper internally
 
 2. **Dependency Injection**: https://www.drush.org/13.x/dependency-injection/
    - **CRITICAL**: Modern Drush 13+ uses `AutowireTrait` for constructor-based injection; in this repo use `ProvisionAutowireTrait`
@@ -119,10 +129,201 @@ This is the **authoritative source** for all Drush 13 functionality. When workin
 
 **Important notes**:
 - Drush 13 uses PHP 8+ attributes, not annotations (older Drush versions used annotations)
-- Commands extend `Symfony\Component\Console\Command\Command` and use `#[AsCommand]`
-- Command classes are auto-discovered from `src/Drush/Commands` in the `Aegir\Provision\Drush\Commands` namespace
+- Target pattern: `Drush\Commands\DrushCommands` with method-level `#[Command]` attributes (legacy `#[AsCommand]` exists and should be refactored when touched)
+- Command classes are auto-discovered from `src/Drush/Commands` and should use the `Drush\Commands\provision` namespace (legacy code may use `Aegir\Provision\Drush\Commands`)
 - Service container is Symfony-based; dependency injection uses `ProvisionAutowireTrait` (wraps `AutowireTrait`) and `ProvisionServiceRegistry` to register Provision services in the Drush container
 - Alias files use YAML format, not legacy PHP arrays
+
+## Aegir Drush Commands Library (Refactor Target)
+
+Use this guidance when creating or refactoring a reusable, site-wide Drush commands library for Aegir platform management (for example, `aegir/drush-commands`). This is separate from the Aegir Provision backend package and should be treated as a PSR-4 Composer library.
+
+### Core Requirements
+
+- **Composer type**: `library`
+- **Drush version**: `^13.7` with `conflict` on `<13.7`
+- **PSR-4**: Base namespace maps to `src/`
+- **Discovery**: Drush auto-discovers commands via Composer autoload (no manual registration)
+- **No legacy registration**: Do not use `drush.services.yml` or `drush.commands` config
+
+### Command Class Rules
+
+- Location: `src/Drush/Commands/`
+- Namespace: `{Base}\Drush\Commands`
+- Filename: `*Commands.php` (plural)
+- Base class: `Drush\Commands\DrushCommands`
+- Attributes: `#[Command]`, `#[Argument]`, `#[Option]` on the **method**
+- Output: use `$this->io()` (SymfonyStyle)
+- Exit codes: `self::EXIT_SUCCESS`, `self::EXIT_FAILURE`, `self::EXIT_INVALID`
+
+### Refactor Guidance (when touching legacy code)
+
+If you encounter Symfony Console commands (`#[AsCommand]`, `configure()`, `execute()`), refactor to Drush 13 method-based commands:
+- Replace `extends Symfony\Component\Console\Command\Command` with `extends Drush\Commands\DrushCommands`.
+- Remove `configure()` and `execute()`; move logic into a public command method.
+- Convert arguments/options into `#[Argument]`/`#[Option]` attributes.
+- Use `$this->io()` and `self::EXIT_*` constants.
+
+### Minimal Skeleton (Drush 13.7+)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Package\Drush\Commands;
+
+use Drush\Attributes as CLI;
+use Drush\Attributes\Command;
+use Drush\Boot\DrupalBootLevels;
+use Drush\Commands\DrushCommands;
+
+final class PlatformInstallCommands extends DrushCommands
+{
+  public function __construct()
+  {
+    parent::__construct();
+  }
+
+  #[Command(name: 'platform:install', description: 'Provision a Drupal platform')]
+  #[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
+  public function install(): int
+  {
+    $this->io()->success('Done');
+    return self::EXIT_SUCCESS;
+  }
+}
+```
+
+## Drush 13.7+ Command Refactoring Checklist
+
+When refactoring a command from raw Symfony Console to proper Drush 13.7+ patterns:
+
+### Step-by-Step Refactoring Process
+
+1. **Replace Base Class**
+   - ❌ Remove: `extends Symfony\Component\Console\Command\Command`
+   - ✅ Add: `extends Drush\Commands\DrushCommands`
+
+2. **Remove Symfony Methods**
+   - ❌ Delete: `protected function configure(): void { ... }`
+   - ❌ Delete: `protected function execute(InputInterface $input, OutputInterface $output): int { ... }`
+
+3. **Define Command Method with Attributes**
+   - ✅ Create public method with descriptive name (not `execute`)
+   - ✅ Add `#[Command(name: 'provision:operation')]` attribute
+   - ✅ Add `#[Argument]` attributes for each argument
+   - ✅ Add `#[Option]` attributes for each option
+
+4. **Convert Arguments and Options**
+   - ❌ Remove: `$this->addArgument('context', InputArgument::REQUIRED, ...)`
+   - ✅ Add: `#[Argument(name: 'context', description: '...')]` + method parameter
+   - ❌ Remove: `$this->addOption('delete', null, InputOption::VALUE_NONE, ...)`
+   - ✅ Add: `#[Option(name: 'delete', type: 'boolean', description: '...')]` + method parameter
+
+5. **Fix File and Class Names**
+   - ❌ Rename: `ProvisionSaveCommand.php` → `ProvisionSaveCommands.php`
+   - ❌ Rename: `class ProvisionSaveCommand` → `class ProvisionSaveCommands`
+
+6. **Update Namespace**
+   - ❌ Change: `namespace Aegir\Provision\Drush\Commands;`
+   - ✅ To: `namespace Drush\Commands\provision;`
+
+7. **Preserve Business Logic**
+   - ✅ Move logic from `execute()` to new command method
+   - ✅ Keep all service calls and orchestration unchanged
+   - ✅ Maintain error handling
+
+8. **Update Logging and Output**
+   - ❌ Remove: Direct use of `$output->writeln()`
+   - ✅ Use: `$this->logger()->success()`, `$this->logger()->error()`, etc.
+   - ❌ Change: `$this->logger` (property)
+   - ✅ To: `$this->logger()` (method call)
+
+### Validation Checklist
+
+Before considering refactoring complete:
+
+- [ ] Command extends `DrushCommands` (not Symfony `Command`)
+- [ ] No `configure()` method exists
+- [ ] No `execute()` method exists
+- [ ] No `#[AsCommand]` attribute exists
+- [ ] Has `#[Command(name: 'provision:*')]` attribute
+- [ ] All arguments have `#[Argument]` attributes
+- [ ] All options have `#[Option]` attributes
+- [ ] Boolean options specify `type: 'boolean'`
+- [ ] File name ends with `*Commands.php` (plural)
+- [ ] Class name ends with `*Commands` (plural)
+- [ ] Namespace is `Drush\Commands\provision`
+- [ ] Command name uses colon syntax (`provision:operation`)
+- [ ] Returns `self::EXIT_SUCCESS` or `self::EXIT_FAILURE`
+- [ ] Uses `$this->logger()` for output
+- [ ] Calls `parent::__construct()` in constructor
+- [ ] PSR-4 autoloading still valid
+- [ ] Command appears in `drush list`
+
+### Common Pitfalls to Avoid
+
+❌ **Do NOT**:
+- Mix Symfony Console patterns with Drush patterns
+- Use dash syntax in command names (`provision-save`)
+- Name methods `execute` or `configure`
+- Use singular filenames (`*Command.php`)
+- Access `InputInterface` or `OutputInterface` in method signatures
+- Use `Command::SUCCESS` constants (use `self::EXIT_SUCCESS`)
+- Write to output directly (`$output->writeln()`)
+- Use `$this->logger` as property (it's a method: `$this->logger()`)
+
+✅ **Always**:
+- Use colon syntax in command names (`provision:save`)
+- Use plural filenames (`*Commands.php`)
+- Use `DrushCommands` base class
+- Use attribute-based command definitions
+- Return integer exit codes
+- Access logger via method call: `$this->logger()`
+- Map arguments/options to method parameters
+
+## Testing Drush 13.7+ Commands
+
+After refactoring:
+
+```bash
+# Clear Drush cache
+drush cache:clear drush
+
+# List all provision commands
+drush list provision
+
+# Get help for specific command
+drush provision:save --help
+
+# Test command execution
+drush provision:save @test --type=site --data='{"uri":"test.local"}'
+```
+
+## Package Type Requirements
+
+For site-wide command discovery, ensure `composer.json` has:
+
+```json
+{
+  "name": "argopecten/aegir-provision",
+  "type": "drupal-drush",
+  "require": {
+    "drush/drush": "^13.7"
+  },
+  "autoload": {
+    "psr-4": {
+      "Aegir\\Provision\\": "src/",
+      "Drush\\Commands\\provision\\": "src/Drush/Commands/"
+    }
+  }
+}
+```
+
+Note: PSR-4 autoloading must map `Drush\Commands\provision` namespace to `src/Drush/Commands/` directory.
+
+---
 
 ## ⚠️ CRITICAL: Standalone Drush Command Package Architecture
 
@@ -135,20 +336,210 @@ This is the **authoritative source** for all Drush 13 functionality. When workin
 - Placed in `drush/Commands/contrib/aegir-provision/` by Composer
 - PSR-4 autoloading: `Aegir\Provision\` → `src/`
 
-### ✅ Drush 13.7+ Migration
+### ⚠️ Drush 13.7+ Migration Status
 
-**Status**: Completed - Commands now follow Drush 13.7+ standards (Symfony Console + `#[AsCommand]` + `ProvisionAutowireTrait` + auto-discovery).
+**Status**: INCOMPLETE - Commands currently use raw Symfony Console pattern and need refactoring to proper Drush 13.7+ API.
 
-The codebase now uses **modern Drush 13.7+ patterns** (Symfony `Command`, `#[AsCommand]`, one-class-per-command, PSR-4 auto-discovery). Legacy `drush.services.yml` registration has been removed, and Provision services are registered via `ProvisionServiceRegistry` during autowire.
+The codebase currently uses raw Symfony Console commands which bypass Drush's command layer. Commands need refactoring to use **proper Drush 13.7+ patterns**: `DrushCommands` base class, `#[Command]` attributes, method-based commands (not `execute()`), and `#[Argument]`/`#[Option]` attributes. Drush internally generates the Symfony Console `execute()` wrapper.
+
+### Required Refactoring Rules
+
+#### File Naming Convention
+- **MUST** use plural `*Commands.php` filename suffix
+- ✅ Valid: `ProvisionSaveCommands.php`, `ProvisionInstallCommands.php`
+- ❌ Invalid: `ProvisionSaveCommand.php`, `ProvisionSave.php`
+
+#### Class Naming Convention
+- **MUST** match filename with plural `*Commands` class name
+- ✅ Valid: `class ProvisionSaveCommands extends DrushCommands`
+- ❌ Invalid: `class ProvisionSaveCommand extends Command`
+
+#### Command Naming Convention
+- **MUST** use colon syntax: `provision:operation`
+- **MUST NOT** use dash syntax: `provision-operation`
+- Examples:
+  - ✅ `provision:save`, `provision:install`, `provision:verify`
+  - ❌ `provision-save`, `provision-install`, `provision-verify`
+
+#### Namespace Convention
+- **MUST** use: `namespace Drush\Commands\provision;`
+- ❌ Do NOT use: `namespace Aegir\Provision\Drush\Commands;`
+- Location: `src/Drush/Commands/` directory
+- PSR-4 discovery requires `Drush\Commands` namespace prefix
 
 **Complete details**: [doc/TODO.md](../doc/TODO.md) contains the remaining validation and testing checklist.
 
 **Quick reference**: https://www.drush.org/13.x/commands/
 
-### Critical Distinctions (Still Relevant)
+---
+
+## Site-Wide Drush Commands for Aegir Platform Management
+
+Use this guidance when creating a reusable, site-wide Drush commands library for Aegir platform management (for example, `aegir/drush-commands`). This is separate from the Aegir Provision backend package.
+
+**Package requirements**:
+- **Composer type**: `library`
+- **PSR-4**: Base namespace maps to `src/`
+- **Discovery**: Drush auto-discovers classes via Composer autoload
+- **No manual registration**: Do not use `drush.services.yml` or global config
+
+**Command class rules**:
+- Location: `src/Drush/Commands/`
+- Namespace: `{Base}\Drush\Commands`
+- Filename: `*Commands.php` (plural)
+- Base class: `Drush\Commands\DrushCommands`
+- Attributes: `#[Command]`, `#[Argument]`, `#[Option]` on the **method**
+- Output: use `$this->io()` (SymfonyStyle)
+
+**Minimal skeleton**:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Vendor\Package\Drush\Commands;
+
+use Drush\Attributes as CLI;
+use Drush\Attributes\Command;
+use Drush\Boot\DrupalBootLevels;
+use Drush\Commands\DrushCommands;
+
+final class PlatformInstallCommands extends DrushCommands
+{
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+    #[Command(name: 'platform:install', description: 'Provision a Drupal platform')]
+    #[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
+    public function install(): int
+    {
+        $this->io()->success('Done');
+        return self::EXIT_SUCCESS;
+    }
+}
+```
+
+**Notes**:
+- Prefer the minimum bootstrap level (often `NONE`) for platform-level operations.
+- For new work, follow this Drush 13 pattern; treat any `#[AsCommand]` + `configure()`/`execute()` guidance as legacy refactor targets.
+
+## Drush 13.7+ Command Refactoring Checklist
+
+When refactoring a command from raw Symfony Console to proper Drush 13.7+ patterns:
+
+### Step-by-Step Refactoring Process
+
+1. **Replace Base Class**
+   - ❌ Remove: `extends Symfony\Component\Console\Command\Command`
+   - ✅ Add: `extends Drush\Commands\DrushCommands`
+
+2. **Remove Symfony Methods**
+   - ❌ Delete: `protected function configure(): void { ... }`
+   - ❌ Delete: `protected function execute(InputInterface $input, OutputInterface $output): int { ... }`
+
+3. **Define Command Method with Attributes**
+   - ✅ Create public method with descriptive name (not `execute`)
+   - ✅ Add `#[Command(name: 'provision:operation')]` attribute
+   - ✅ Add `#[Argument]` attributes for each argument
+   - ✅ Add `#[Option]` attributes for each option
+
+4. **Convert Arguments and Options**
+   - ❌ Remove: `$this->addArgument('context', InputArgument::REQUIRED, ...)`
+   - ✅ Add: `#[Argument(name: 'context', description: '...')]` + method parameter
+   - ❌ Remove: `$this->addOption('delete', null, InputOption::VALUE_NONE, ...)`
+   - ✅ Add: `#[Option(name: 'delete', type: 'boolean', description: '...')]` + method parameter
+
+5. **Fix File and Class Names**
+   - ❌ Rename: `ProvisionSaveCommand.php` → `ProvisionSaveCommands.php`
+   - ❌ Rename: `class ProvisionSaveCommand` → `class ProvisionSaveCommands`
+
+6. **Update Namespace**
+   - ❌ Change: `namespace Aegir\Provision\Drush\Commands;`
+   - ✅ To: `namespace Drush\Commands\provision;`
+
+7. **Preserve Business Logic**
+   - ✅ Move logic from `execute()` to new command method
+   - ✅ Keep all service calls and orchestration unchanged
+   - ✅ Maintain error handling
+
+8. **Update Logging and Output**
+   - ❌ Remove: Direct use of `$output->writeln()`
+   - ✅ Use: `$this->logger()->success()`, `$this->logger()->error()`, etc.
+   - ❌ Change: `$this->logger` (property)
+   - ✅ To: `$this->logger()` (method call)
+
+### Validation Checklist
+
+Before considering refactoring complete:
+
+- [ ] Command extends `DrushCommands` (not Symfony `Command`)
+- [ ] No `configure()` method exists
+- [ ] No `execute()` method exists
+- [ ] No `#[AsCommand]` attribute exists
+- [ ] Has `#[Command(name: 'provision:*')]` attribute
+- [ ] All arguments have `#[Argument]` attributes
+- [ ] All options have `#[Option]` attributes
+- [ ] Boolean options specify `type: 'boolean'`
+- [ ] File name ends with `*Commands.php` (plural)
+- [ ] Class name ends with `*Commands` (plural)
+- [ ] Namespace is `Drush\Commands\provision`
+- [ ] Command name uses colon syntax (`provision:operation`)
+- [ ] Returns `self::EXIT_SUCCESS` or `self::EXIT_FAILURE`
+- [ ] Uses `$this->logger()` for output
+- [ ] Calls `parent::__construct()` in constructor
+- [ ] PSR-4 autoloading still valid
+- [ ] Command appears in `drush list`
+
+### Common Pitfalls to Avoid
+
+❌ **Do NOT**:
+- Mix Symfony Console patterns with Drush patterns
+- Use dash syntax in command names (`provision-save`)
+- Name methods `execute` or `configure`
+- Use singular filenames (`*Command.php`)
+- Access `InputInterface` or `OutputInterface` in method signatures
+- Use `Command::SUCCESS` constants (use `self::EXIT_SUCCESS`)
+- Write to output directly (`$output->writeln()`)
+- Use `$this->logger` as property (it's a method: `$this->logger()`)
+
+✅ **Always**:
+- Use colon syntax in command names (`provision:save`)
+- Use plural filenames (`*Commands.php`)
+- Use `DrushCommands` base class
+- Use attribute-based command definitions
+- Return integer exit codes
+- Access logger via method call: `$this->logger()`
+- Map arguments/options to method parameters
+
+### Testing Drush 13.7+ Commands
+
+After refactoring:
+
+```bash
+# Clear Drush cache
+drush cache:clear drush
+
+# List all provision commands
+drush list provision
+
+# Get help for specific command
+drush provision:save --help
+
+# Test command execution
+drush provision:save @test --type=site --data='{"uri":"test.local"}'
+```
+
+---
+
+### Critical Distinctions
 - Commands run **outside** Drupal bootstrap (can operate on multiple sites)
 - **CANNOT** use Drupal APIs, entities, hooks, or database abstraction
 - **CANNOT** access Drupal's configuration, state, or cache systems
+- Commands MUST extend `Drush\Commands\DrushCommands` (not raw Symfony Console `Command`)
+- Commands MUST use `#[Command]` attributes with method-based definitions
+- Commands MUST NOT implement `execute()` - Drush generates this internally
 
 ### Why This Architecture Exists
 
@@ -207,6 +598,68 @@ $query = $connection->select('node', 'n');
 - No entity definitions (that's aegir-hosting frontend)
 
 ### What You CAN Do
+
+**✅ Use proper Drush 13.7+ command structure**:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Drush\Commands\provision;
+
+use Aegir\Provision\ProvisionManager;
+use Drush\Commands\DrushCommands;
+use Drush\Attributes\Command;
+use Drush\Attributes\Argument;
+use Drush\Attributes\Option;
+
+/**
+ * Provision save commands.
+ */
+class ProvisionSaveCommands extends DrushCommands {
+  use ProvisionAutowireTrait;
+
+  public function __construct(
+    private readonly ProvisionManager $manager
+  ) {
+    parent::__construct();
+  }
+
+  /**
+   * Save or update a provision context.
+   */
+  #[Command(name: 'provision:save', aliases: ['psave'])]
+  #[Argument(name: 'context', description: 'Context name (e.g., @example.com)')]
+  #[Option(name: 'type', description: 'Context type: server, platform, or site')]
+  #[Option(name: 'data', description: 'Context data as JSON string')]
+  #[Option(name: 'delete', description: 'Delete the context', type: 'boolean')]
+  public function save(
+    string $context,
+    array $options = ['type' => null, 'data' => null, 'delete' => false]
+  ): int {
+    try {
+      $this->manager->saveContext($context, $options);
+      $this->logger()->success("Context saved: $context");
+      return self::EXIT_SUCCESS;
+    }
+    catch (\Exception $e) {
+      $this->logger()->error($e->getMessage());
+      return self::EXIT_FAILURE;
+    }
+  }
+}
+```
+
+**Key elements of proper Drush 13 commands**:
+- Extend `DrushCommands` base class
+- Use `#[Command]` attribute with `name` parameter (colon syntax)
+- Use `#[Argument]` and `#[Option]` attributes
+- Method parameters map to arguments/options
+- Return `self::EXIT_SUCCESS` or `self::EXIT_FAILURE`
+- Use `$this->logger()` for output
+- Boolean options specify `type: 'boolean'`
+- Plural filename: `*Commands.php`
+- Namespace: `Drush\Commands\provision`
 
 **✅ Use Drush to interact with Drupal sites**:
 ```php
@@ -498,14 +951,12 @@ Commands delegate to **ProvisionManager** for orchestration:
 
 ```php
 use Aegir\Provision\Drush\Commands\ProvisionAutowireTrait;
-use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
+use Drush\Attributes\Argument;
+use Drush\Attributes\Command;
+use Drush\Commands\DrushCommands;
 
-#[AsCommand(name: 'provision:install')]
-final class ProvisionInstallCommand extends Command {
+#[Command(name: 'provision:install', description: 'Install a Drupal site')]
+final class ProvisionInstallCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
   public function __construct(
@@ -515,14 +966,11 @@ final class ProvisionInstallCommand extends Command {
     parent::__construct();
   }
 
-  protected function configure(): void {
-    $this->addArgument('site', InputArgument::REQUIRED, 'Site context name');
-  }
-
-  protected function execute(InputInterface $input, OutputInterface $output): int {
-    $context = $this->contexts->load($input->getArgument('site'));
+  #[Argument(name: 'site', description: 'Site context name')]
+  public function install(string $site): int {
+    $context = $this->contexts->load($site);
     $this->manager->install($context);
-    return Command::SUCCESS;
+    return self::EXIT_SUCCESS;
   }
 }
 ```
@@ -1088,14 +1536,15 @@ php_admin_value[post_max_size] = 64M
 
 ### Drush 13.7+ Integration
 
-Drush 13.7+ requires auto-discovered Symfony Console commands (annotated Drush commands are deprecated).
+**Target pattern**: Drush 13.7+ command classes extend `Drush\Commands\DrushCommands` and use method-level `#[Command]` attributes. Legacy Symfony Console commands (`#[AsCommand]`, `configure()`, `execute()`) still exist in parts of this codebase and must be refactored when touched.
 
-**Command auto-discovery requirements**:
+**Command auto-discovery requirements (target)**:
 - Commands live in `src/Drush/Commands`
-- Namespace: `Aegir\Provision\Drush\Commands`
+- Namespace: `Drush\Commands\provision`
 - One command per class file
-- Extend `Symfony\Component\Console\Command\Command`
-- Use `#[AsCommand]`, define args/options in `configure()`, logic in `execute()`
+- Filename ends with `*Commands.php`
+- Extend `Drush\Commands\DrushCommands`
+- Use `#[Command]`, `#[Argument]`, `#[Option]` attributes on the command **method**
 - Use `ProvisionAutowireTrait` (wraps `AutowireTrait`) for constructor-based DI
 - Do not use `drush.services.yml`
 - Do not use global command registration via `drush.commands` configuration
@@ -1113,21 +1562,14 @@ Example repository:
 https://github.com/drush-ops/drush/tree/13.x/examples/Commands
 ```
 
-**Example Command**:
+**Example Command (target pattern)**:
 ```php
 use Aegir\Provision\Drush\Commands\ProvisionAutowireTrait;
-use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
+use Drush\Attributes\Argument;
+use Drush\Attributes\Command;
+use Drush\Commands\DrushCommands;
 
-#[AsCommand(
-  name: 'provision:install',
-  description: 'Install a Drupal site',
-  aliases: ['pvi']
-)]
-final class ProvisionInstallCommand extends Command {
+final class ProvisionInstallCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
   public function __construct(
@@ -1136,13 +1578,11 @@ final class ProvisionInstallCommand extends Command {
     parent::__construct();
   }
 
-  protected function configure(): void {
-    $this->addArgument('site', InputArgument::REQUIRED, 'Site context name');
-  }
-
-  protected function execute(InputInterface $input, OutputInterface $output): int {
-    $this->manager->install($input->getArgument('site'));
-    return Command::SUCCESS;
+  #[Command(name: 'provision:install', description: 'Install a Drupal site')]
+  #[Argument(name: 'site', description: 'Site context name')]
+  public function install(string $site): int {
+    $this->manager->install($site);
+    return self::EXIT_SUCCESS;
   }
 }
 ```

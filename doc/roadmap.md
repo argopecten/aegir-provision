@@ -12,9 +12,11 @@ The foundational architecture for Drupal 11+ is fully implemented:
 
 - ✅ **All D7 commands documented** in [provision-d7.md](provision-d7.md)
 - ✅ **D11 architecture documented** in [provision-d11.md](provision-d11.md)
-- ✅ **All 16 core commands implemented** using Drush 13.7+ patterns
+- ⚠️ **All 16 core commands implemented** but need refactoring to proper Drush 13.7+ patterns
 - ✅ **Modern PHP 8.3+ architecture** with strict types, DI, and Symfony components
 - ✅ **Service architecture complete**: Apache, MySQL, SSL, Settings generation
+
+**Note**: Commands currently use raw Symfony Console pattern and need refactoring to extend `DrushCommands` with `#[Command]` attributes.
 - ✅ **Context system complete**: ContextRepository, AliasStore, YAML storage
 - ✅ **Template system complete**: TemplateRenderer with PHP templates
 

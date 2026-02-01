@@ -2,22 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Aegir\Provision\Drush\Commands;
+namespace Drush\Commands\provision;
 
 use Aegir\Provision\ProvisionManager;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
+use Drush\Attributes\Argument;
+use Drush\Attributes\Command;
+use Drush\Attributes\Option;
+use Drush\Commands\DrushCommands;
 use Symfony\Component\Yaml\Yaml;
 
-#[AsCommand(
-    name: 'provision-save',
-    description: 'Save or update context data'
-)]
-final class ProvisionSaveCommand extends Command {
+/**
+ * Provision save commands.
+ */
+final class ProvisionSaveCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
   public function __construct(
@@ -26,28 +23,39 @@ final class ProvisionSaveCommand extends Command {
     parent::__construct();
   }
 
-  protected function configure(): void {
-    $this->addArgument('context', InputArgument::REQUIRED, 'Context name, e.g. @example.com');
-    $this->addOption('data', null, InputOption::VALUE_REQUIRED, 'Context data as JSON or YAML string');
-    $this->addOption('data-file', null, InputOption::VALUE_REQUIRED, 'Context data file (JSON or YAML)');
-    $this->addOption('type', null, InputOption::VALUE_REQUIRED, 'Context type: server, platform, site');
-    $this->addOption('delete', null, InputOption::VALUE_NONE, 'Delete context');
-  }
+  /**
+   * Save or update context data.
+   */
+  #[Command(name: 'provision:save', aliases: ['psave'])]
+  #[Argument(name: 'context', description: 'Context name, e.g. @example.com')]
+  #[Option(name: 'data', description: 'Context data as JSON or YAML string')]
+  #[Option(name: 'data-file', description: 'Context data file (JSON or YAML)')]
+  #[Option(name: 'type', description: 'Context type: server, platform, site')]
+  #[Option(name: 'delete', description: 'Delete context', type: 'boolean')]
+  public function save(
+    string $context,
+    array $options = ['data' => null, 'data-file' => null, 'type' => null, 'delete' => false]
+  ): int {
+    try {
+      $data = $this->readContextData(
+        $options['data'],
+        $options['data-file']
+      );
 
-  protected function execute(InputInterface $input, OutputInterface $output): int {
-    $data = $this->readContextData(
-      $input->getOption('data'),
-      $input->getOption('data-file')
-    );
+      $this->manager->saveContext(
+        $context,
+        $data,
+        $options['type'],
+        (bool) $options['delete']
+      );
 
-    $this->manager->saveContext(
-      (string) $input->getArgument('context'),
-      $data,
-      $input->getOption('type'),
-      (bool) $input->getOption('delete')
-    );
-
-    return Command::SUCCESS;
+      $this->logger()->success("Context saved: $context");
+      return self::EXIT_SUCCESS;
+    }
+    catch (\Exception $e) {
+      $this->logger()->error($e->getMessage());
+      return self::EXIT_FAILURE;
+    }
   }
 
   /**

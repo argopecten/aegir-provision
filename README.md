@@ -78,7 +78,7 @@ See [documentation](doc/Home.md) for complete command reference.
 
 ```
 src/
-├── Drush/Commands/           # Auto-discovered command classes
+├── Drush/Commands/           # Drush command classes (need refactoring to DrushCommands)
 ├── Core/                     # Context, Filesystem, ProcessRunner
 ├── ProvisionManager.php      # Central orchestrator
 ├── Service/                  # Apache, MySQL, SSL, Drupal services
@@ -87,6 +87,8 @@ src/
 
 resources/templates/          # Apache vhosts, Drupal settings
 ```
+
+**Note**: Commands currently use raw Symfony Console and need refactoring to proper Drush 13.7+ `DrushCommands` base class with `#[Command]` attributes.
 
 See [provision-d11.md](doc/provision-d11.md) for architecture deep-dive.
 

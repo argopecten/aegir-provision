@@ -1,7 +1,7 @@
 # Extension System Documentation
 
 **Version**: Aegir Provision 11.x for Drupal 11+  
-**Last Updated**: January 31, 2026
+**Last Updated**: February 1, 2026
 
 ---
 
@@ -16,6 +16,847 @@ The Aegir Provision extension system allows third-party code to integrate with p
 This replaces the D7 hook system (`hook_provision_*`) with a modern, type-safe approach using Symfony EventDispatcher.
 
 ---
+
+## Aegir Drush Commands Library (PSR-4 Composer Package)
+
+A reusable PSR-4 Composer library providing site-wide Drush commands for Aegir platform management, compatible with Drush 13.7+.
+
+### What This Is
+
+This is a **PSR-4 Composer package** that provides custom Drush commands for Aegir operations. As a library:
+
+- **Reusable**: Can be installed in any Drupal project via `composer require aegir/drush-commands`
+- **PSR-4 Compliant**: Follows PHP autoloading standards for maximum compatibility
+- **Site-Wide Commands**: Commands are available globally within any project that requires this package
+- **Drush 13.7+ Compatible**: Uses Drush 13 attribute-based commands on top of Symfony Console for:
+  - Future compatibility with Drush 14+
+  - Better IDE support and type safety
+  - Standard Symfony Console patterns
+  - Proper dependency injection support
+
+### Use Cases
+
+Use this distribution model when you want to:
+- Share Drush commands across multiple Drupal projects
+- Version and release commands independently from your projects
+- Distribute commands via Composer/Packagist
+- Maintain commands separately from site-specific code
+
+**Alternative:** For project-specific commands that will not be reused, place them directly in your project's `drush/Commands/` directory.
+
+### Installation
+
+#### For Users of This Library
+
+Add this package to your Drupal project:
+
+```bash
+composer require aegir/drush-commands
+```
+
+The commands will be automatically discovered by Drush after installation.
+
+#### For Developers of This Library
+
+Clone or create the library with the following structure.
+
+### Package Directory Structure
+
+A PSR-4 Drush commands library should have this structure:
+
+```
+aegir/drush-commands/
+├── composer.json
+├── README.md
+├── src/
+│   └── Drush/
+│       └── Commands/
+│           ├── PlatformInstallCommands.php
+│           └── OtherCommands.php
+└── tests/
+    └── ...
+```
+
+**Critical Requirements:**
+- Package MUST have a `composer.json` with PSR-4 autoload configuration
+- Commands MUST be in `src/Drush/Commands/` directory
+- Files MUST end with `Commands.php`
+- Namespace MUST match your package's PSR-4 mapping + `\Drush\Commands`
+
+### Package Composer Configuration
+
+Your library's `composer.json` should look like this:
+
+```json
+{
+  "name": "aegir/drush-commands",
+  "description": "Site-wide Drush commands for Aegir platform management",
+  "type": "library",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=8.1",
+    "drush/drush": "^13.7",
+    "symfony/console": "^6.0 || ^7.0",
+    "symfony/process": "^6.0 || ^7.0"
+  },
+  "conflict": {
+    "drush/drush": "<13.7"
+  },
+  "autoload": {
+    "psr-4": {
+      "Drupal\\Platform\\": "src/"
+    }
+  }
+}
+```
+
+**Key Points:**
+- `type: library` - Declares this as a Composer library
+- `require` - Specifies dependencies (Drush 13.7+, Symfony Console)
+- `conflict` - Ensures compatibility
+- `autoload` - PSR-4 mapping where `Drupal\\Platform\\` maps to `src/`
+  - This means `Drupal\Platform\Drush\Commands` maps to `src/Drush/Commands/`
+
+#### After Creating/Modifying composer.json
+
+Generate the autoloader:
+
+```bash
+cd /var/aegir/drush-commands
+composer install
+```
+
+### How Drush Discovers PSR-4 Commands
+
+Drush 13.7+ automatically discovers commands from Composer packages using:
+
+1. **PSR-4 Autoloading**: Scans all PSR-4 namespaces for classes matching:
+   - Pattern: `*\\Drush\\Commands\\*Commands`
+   - Must extend `Drush\Commands\DrushCommands`
+
+2. **Automatic Registration**: When a project runs `composer require your-vendor/drush-commands`:
+   - Composer updates the autoloader to include your package
+   - Drush scans the autoloader and finds your command classes
+   - Commands are immediately available
+
+**No manual registration needed** - Drush discovers PSR-4 commands automatically via Composer's autoloader.
+
+### Command Class Structure
+
+#### Recommended Approach: DrushCommands with Attributes (Drush 13.7+)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\Platform\Drush\Commands;
+
+use Drush\Attributes as CLI;
+use Drush\Attributes\Argument;
+use Drush\Attributes\Command;
+use Drush\Attributes\Option;
+use Drush\Boot\DrupalBootLevels;
+use Drush\Commands\DrushCommands;
+
+final class PlatformInstallCommands extends DrushCommands
+{
+  public function __construct()
+  {
+    parent::__construct();
+  }
+
+  #[Command(
+    name: 'platform:install',
+    description: 'Provision a Drupal platform (Composer only)'
+  )]
+  #[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
+  #[Argument(name: 'argument-name', description: 'Description of the argument')]
+  #[Option(name: 'option-name', description: 'Description of the option', default: 'default-value')]
+  public function install(string $argumentName, string $optionName = 'default-value'): int
+  {
+    $io = $this->io();
+
+    // Get inputs
+    $argument = $argumentName;
+    $option = $optionName;
+
+    // Display section header
+    $io->section('Doing something');
+
+    // Output text
+    $io->text('Processing...');
+
+    // Success message
+    $io->success('Operation completed!');
+
+    return self::EXIT_SUCCESS;
+  }
+}
+```
+
+**Note:** The namespace `Drupal\Platform\Drush\Commands` comes from:
+- Base namespace: `Drupal\Platform\` (defined in composer.json as mapping to `src/`)
+- Plus: `Drush\Commands\` (required by Drush for auto-discovery)
+- File location: `src/Drush/Commands/PlatformInstallCommands.php`
+
+### Critical Components Explained
+
+#### 1. Namespace
+```php
+namespace Drupal\Platform\Drush\Commands;
+```
+
+**For PSR-4 Libraries:**
+- Base namespace matches your package's PSR-4 mapping (e.g., `Drupal\Platform\`)
+- MUST append `\Drush\Commands` for Drush discovery
+- Full namespace = Base + `\Drush\Commands`
+
+**Examples:**
+- Package: `"My\\Package\\": "src/"` -> Commands: `My\Package\Drush\Commands`
+- Package: `"Drupal\\Platform\\": "src/"` -> Commands: `Drupal\Platform\Drush\Commands`
+- Package: `"Acme\\Tools\\": "src/"` -> Commands: `Acme\Tools\Drush\Commands`
+
+**Note:** For site-specific commands in `drush/` directory (not PSR-4 packages), use `Drush\Commands` directly.
+
+#### 2. Command Attribute
+```php
+#[Command(
+  name: 'my:command',
+  description: 'Brief description',
+  aliases: ['mc']
+)]
+```
+- `name`: Command name (use colon for grouping: `category:action`)
+- `description`: Short description shown in `drush list`
+- `aliases`: Optional short aliases
+
+Apply this attribute to the command method (not the class).
+
+#### 3. Bootstrap Attribute
+```php
+#[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
+```
+
+Available levels:
+- `DrupalBootLevels::NONE` - No Drupal bootstrap (fast, use for platform-level operations)
+- `DrupalBootLevels::ROOT` - Bootstrap to Drupal root
+- `DrupalBootLevels::SITE` - Bootstrap to Drupal site
+- `DrupalBootLevels::CONFIGURATION` - Bootstrap with configuration
+- `DrupalBootLevels::DATABASE` - Bootstrap with database
+- `DrupalBootLevels::FULL` - Full Drupal bootstrap
+
+**Important:** Include the use statement:
+```php
+use Drush\Boot\DrupalBootLevels;
+```
+
+#### 4. Constructor
+```php
+public function __construct()
+{
+  parent::__construct();
+}
+```
+
+**Guidance:** Define a constructor only when you need dependency injection. If you do, always call `parent::__construct()`.
+
+#### 5. Dependency Injection (Advanced)
+
+If you need Drupal or Drush services, use the constructor with type hints:
+
+```php
+use Psr\Log\LoggerInterface;
+use Drupal\Core\Config\ConfigFactoryInterface;
+
+public function __construct(
+  private readonly LoggerInterface $logger,
+  private readonly ConfigFactoryInterface $configFactory,
+) {
+  parent::__construct();
+}
+```
+
+**Note:** This requires `DrupalBootLevels::FULL` or the appropriate bootstrap level.
+
+### Common Input/Output Patterns
+
+#### Working with SymfonyStyle
+
+```php
+$io = $this->io();
+
+// Headings
+$io->title('Main Title');
+$io->section('Section Title');
+
+// Output
+$io->text('Normal text');
+$io->writeln('Line of text');
+
+// Lists
+$io->listing(['Item 1', 'Item 2', 'Item 3']);
+
+// Tables
+$io->table(
+  ['Header 1', 'Header 2'],
+  [
+    ['Row 1 Col 1', 'Row 1 Col 2'],
+    ['Row 2 Col 1', 'Row 2 Col 2'],
+  ]
+);
+
+// Status messages
+$io->success('Success message');
+$io->error('Error message');
+$io->warning('Warning message');
+$io->note('Note message');
+
+// Progress bar
+$io->progressStart(100);
+for ($i = 0; $i < 100; $i++) {
+  $io->progressAdvance();
+  // do work
+}
+$io->progressFinish();
+
+// User interaction
+$answer = $io->confirm('Proceed?', true);
+$input = $io->ask('Enter value', 'default');
+$choice = $io->choice('Select option', ['Option 1', 'Option 2'], 'Option 1');
+```
+
+### Testing Your Command
+
+#### For Library Developers
+
+After creating/modifying commands in your package:
+
+```bash
+# In your package directory
+composer install
+
+# In a test project that requires your package
+cd /var/aegir/test-project
+composer require your-vendor/your-package:@dev
+
+# Or if using a local path repository
+composer update your-vendor/your-package
+```
+
+#### 1. Check if command is discovered
+
+```bash
+drush list | grep platform:install
+```
+
+#### 2. View command help
+
+```bash
+drush platform:install --help
+```
+
+#### 3. Test with verbose output
+
+```bash
+drush platform:install -vvv
+```
+
+#### 4. Debug discovery issues
+
+```bash
+drush list --debug 2>&1 | grep -i "platform\|error\|could not"
+```
+
+### Testing During Development
+
+For local development, add your package as a path repository in a test project's `composer.json`:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "path",
+      "url": "/var/aegir/drush-commands"
+    }
+  ],
+  "require": {
+    "aegir/drush-commands": "@dev"
+  }
+}
+```
+
+Then run:
+```bash
+composer update aegir/drush-commands
+drush list | grep your-command
+```
+
+### Common Issues and Solutions
+
+#### Issue 1: Command not found
+
+**Symptoms:**
+```
+Command platform:install was not found
+```
+
+**Solutions:**
+1. Verify package is properly required: `composer show aegir/drush-commands`
+2. Check file is in `src/Drush/Commands/` directory (relative to package root)
+3. Verify filename ends with `Commands.php`
+4. Check namespace follows pattern: `YourBase\Drush\Commands`
+5. Verify PSR-4 autoload mapping in package's `composer.json`
+6. Run `composer dump-autoload` in your project
+7. Check file for PHP syntax errors: `php -l src/Drush/Commands/YourCommands.php`
+
+**For PSR-4 packages specifically:**
+- Ensure namespace matches: PSR-4 base + `\Drush\Commands`
+- Example: If PSR-4 is `"Drupal\\Platform\\": "src/"`, namespace must be `Drupal\Platform\Drush\Commands`
+- File must be at: `src/Drush/Commands/YourCommands.php`
+
+#### Issue 2: Autowiring error
+
+**Symptoms:**
+```
+Could not instantiate Drush\Commands\MyCommands: Cannot autowire service "string"
+```
+
+**Solution:**
+Ensure your constructor matches services that can be autowired and that `parent::__construct()` is called.
+
+#### Issue 3: Bootstrap constant not found
+
+**Symptoms:**
+```
+Undefined constant Drush\Attributes\Bootstrap::NONE
+```
+
+**Solution:**
+Use `DrupalBootLevels` class instead:
+```php
+use Drush\Boot\DrupalBootLevels;
+
+#[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
+```
+
+#### Issue 4: Class not autoloaded
+
+**Symptoms:**
+```
+Class "Drupal\Platform\Drush\Commands\PlatformInstallCommands" not found
+```
+
+**Solution:**
+1. Verify PSR-4 mapping in your package's `composer.json`
+2. Ensure the class file location matches the namespace
+3. Run `composer dump-autoload` in the consuming project
+4. If using path repository, run `composer update your-vendor/your-package`
+
+#### Issue 5: Package not discovered
+
+**Symptoms:**
+```
+Package aegir/drush-commands not found
+```
+
+**Solutions for local development:**
+1. Add path repository to test project's `composer.json`:
+```json
+{
+  "repositories": [
+    {
+      "type": "path",
+      "url": "/var/aegir/drush-commands"
+    }
+  ]
+}
+```
+2. Require with dev stability: `composer require aegir/drush-commands:@dev`
+3. For published packages, ensure package is on Packagist or a custom repository
+
+### File Naming Conventions
+
+**Good:**
+- `PlatformInstallCommands.php` in `src/Drush/Commands/`
+- `CustomCommands.php` in `src/Drush/Commands/`
+- `SiteMaintenanceCommands.php` in `src/Drush/Commands/`
+- `DeployCommands.php` in `src/Drush/Commands/`
+
+**Bad:**
+- `PlatformInstall.php` (missing "Commands" suffix)
+- `platform-commands.php` (wrong case)
+- `commands.php` (too generic)
+- `MyCommand.php` (singular form)
+- Files in `src/Commands/` without `Drush/` subdirectory (won't be discovered)
+
+### Directory Structure Example
+
+For package `aegir/drush-commands` with PSR-4 mapping `"Drupal\\Platform\\": "src/"`:
+
+```
+aegir/drush-commands/
+├── composer.json
+├── README.md
+├── src/
+│   └── Drush/
+│       └── Commands/
+│           ├── PlatformInstallCommands.php    # Drupal\Platform\Drush\Commands\PlatformInstallCommands
+│           ├── SiteMigrateCommands.php        # Drupal\Platform\Drush\Commands\SiteMigrateCommands
+│           └── BackupCommands.php             # Drupal\Platform\Drush\Commands\BackupCommands
+└── tests/
+    └── ...
+```
+
+Each command is a separate file for clarity and maintainability.
+
+### Version Compatibility
+
+Your package's `composer.json` should declare Drush compatibility:
+
+```json
+{
+  "require": {
+    "drush/drush": "^13.7"
+  },
+  "conflict": {
+    "drush/drush": "<13.7"
+  }
+}
+```
+
+This ensures your commands only run with compatible Drush versions and prevents installation in incompatible environments.
+
+### Publishing Your Package
+
+#### To Packagist (Public)
+
+1. Create a GitHub/GitLab repository for your package
+2. Tag a release: `git tag -a v1.0.0 -m "First release"`
+3. Push tags: `git push --tags`
+4. Submit to Packagist.org
+
+Users can then install with:
+```bash
+composer require aegir/drush-commands
+```
+
+#### Private Repository
+
+For private packages, configure Composer repository in consuming projects:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/yourorg/drush-commands.git"
+    }
+  ]
+}
+```
+
+#### Development Workflow
+
+Use path repositories for local development:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "path",
+      "url": "/var/aegir/drush-commands",
+      "options": {
+        "symlink": true
+      }
+    }
+  ],
+  "require": {
+    "aegir/drush-commands": "@dev"
+  }
+}
+```
+
+This creates a symlink, so changes in the package are immediately available.
+
+### Best Practices
+
+1. **Bootstrap Level**: Use the minimum required bootstrap level for performance
+   - Platform operations: `NONE`
+   - File operations: `ROOT`
+   - Database queries: `DATABASE`
+   - Entity operations: `FULL`
+
+2. **Error Handling**: Always return proper exit codes
+   - Success: `self::EXIT_SUCCESS` (0)
+   - Failure: `self::EXIT_FAILURE` (1)
+   - Invalid: `self::EXIT_INVALID` (2)
+
+3. **User Feedback**: Provide clear, actionable messages
+   - Use `$this->io()->section()` for major steps
+   - Use `$this->io()->text()` for progress updates
+   - Use `$this->io()->success()` or `$this->io()->error()` for final status
+
+4. **Validation**: Validate inputs early in the command method
+
+5. **Help Text**: Provide comprehensive help text and usage examples
+
+### Complete Working Example
+
+This is a `PlatformInstallCommands.php` example for the `aegir/drush-commands` package:
+
+**File:** `src/Drush/Commands/PlatformInstallCommands.php`
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\Platform\Drush\Commands;
+
+use Drush\Attributes as CLI;
+use Drush\Attributes\Command;
+use Drush\Attributes\Option;
+use Drush\Boot\DrupalBootLevels;
+use Drush\Commands\DrushCommands;
+use Symfony\Component\Process\Process;
+
+final class PlatformInstallCommands extends DrushCommands
+{
+  public function __construct()
+  {
+    parent::__construct();
+  }
+
+  #[Command(
+    name: 'platform:install',
+    description: 'Provision a Drupal platform (Composer only)',
+    aliases: ['pfi']
+  )]
+  #[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
+  #[Option(
+    name: 'working-dir',
+    description: 'The working directory containing composer.json',
+    default: '.'
+  )]
+  #[Option(
+    name: 'no-dev',
+    type: 'boolean',
+    description: 'Skip dev dependencies'
+  )]
+  public function install(string $workingDir = '.', bool $noDev = false): int
+  {
+    $io = $this->io();
+
+    $io->section('Provisioning Drupal platform');
+
+    // Validate
+    if (!file_exists($workingDir . '/composer.json')) {
+      $io->error('composer.json not found in ' . $workingDir);
+      return self::EXIT_FAILURE;
+    }
+
+    // Execute Composer
+    $io->text('Installing Composer dependencies');
+    $command = ['composer', 'install', '--optimize-autoloader', '--no-interaction'];
+    if ($noDev) {
+      $command[] = '--no-dev';
+    }
+
+    $process = new Process($command, $workingDir);
+    $process->setTimeout(null);
+
+    try {
+      $process->mustRun(function ($type, $buffer) use ($io) {
+        $io->write($buffer);
+      });
+    } catch (\Exception $e) {
+      $io->error('Composer install failed: ' . $e->getMessage());
+      return self::EXIT_FAILURE;
+    }
+
+    // Verify
+    if (!is_dir($workingDir . '/web/core')) {
+      $io->error('Drupal core not found after Composer install.');
+      return self::EXIT_FAILURE;
+    }
+
+    // Prepare directories
+    $io->text('Preparing writable directories');
+    $dirs = ['web/sites/default/files'];
+    foreach ($dirs as $dir) {
+      $path = $workingDir . '/' . $dir;
+      if (!is_dir($path)) {
+        mkdir($path, 0775, true);
+      }
+    }
+
+    $io->success('Drupal platform provisioned (no site installed).');
+    return self::EXIT_SUCCESS;
+  }
+}
+```
+
+### Quick Checklist
+
+#### For Package Developers
+
+Before releasing your Drush commands library:
+
+- [ ] Package has `composer.json` with correct PSR-4 autoload mapping
+- [ ] Commands in `src/Drush/Commands/` directory
+- [ ] Filenames end with `Commands.php`
+- [ ] Namespace follows pattern: `YourBase\Drush\Commands`
+- [ ] Each command extends `Drush\Commands\DrushCommands`
+- [ ] Constructor calls `parent::__construct()` (when defined)
+- [ ] Uses `DrupalBootLevels` for bootstrap attribute
+- [ ] Imports include `use Drush\Boot\DrupalBootLevels;`
+- [ ] Commands return proper exit codes
+- [ ] PHP syntax is valid: `php -l src/Drush/Commands/*.php`
+- [ ] Drush version requirement in `require` and `conflict`
+- [ ] Tested with path repository in a real project
+- [ ] README.md with installation and usage instructions
+- [ ] Tagged release if publishing to Packagist
+
+#### For Package Users
+
+Before using a Drush commands library:
+
+- [ ] Added package via `composer require vendor/package`
+- [ ] Ran `composer install` or `composer update`
+- [ ] Verified package installed: `composer show vendor/package`
+- [ ] Commands appear in `drush list`
+- [ ] Command help works: `drush command:name --help`
+
+### Creating Your Own Library
+
+#### Step-by-Step Guide
+
+1. **Create package directory structure:**
+```bash
+mkdir -p /var/aegir/my-drush-commands/src/Drush/Commands
+cd /var/aegir/my-drush-commands
+```
+
+2. **Create composer.json:**
+```json
+{
+  "name": "myvendor/my-drush-commands",
+  "description": "Custom Drush commands for my needs",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.1",
+    "drush/drush": "^13.7",
+    "symfony/console": "^6.0 || ^7.0"
+  },
+  "conflict": {
+    "drush/drush": "<13.7"
+  },
+  "autoload": {
+    "psr-4": {
+      "MyVendor\\DrushCommands\\": "src/"
+    }
+  }
+}
+```
+
+3. **Create your first command:**
+`src/Drush/Commands/HelloCommands.php`:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace MyVendor\DrushCommands\Drush\Commands;
+
+use Drush\Attributes as CLI;
+use Drush\Attributes\Command;
+use Drush\Boot\DrupalBootLevels;
+use Drush\Commands\DrushCommands;
+
+#[Command(
+  name: 'hello:world',
+  description: 'A simple hello world command',
+  aliases: ['hw']
+)]
+#[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
+final class HelloCommands extends DrushCommands
+{
+  public function __construct()
+  {
+    parent::__construct();
+  }
+
+  public function hello(): int
+  {
+    $this->io()->success('Hello, World!');
+    return self::EXIT_SUCCESS;
+  }
+}
+```
+
+4. **Test locally:**
+In a Drupal project, add to `composer.json`:
+```json
+{
+  "repositories": [
+    {
+      "type": "path",
+      "url": "/var/aegir/my-drush-commands"
+    }
+  ],
+  "require": {
+    "myvendor/my-drush-commands": "@dev"
+  }
+}
+```
+
+Run:
+```bash
+composer update myvendor/my-drush-commands
+drush hello:world
+```
+
+5. **Publish:**
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git tag v1.0.0
+git remote add origin https://github.com/myvendor/my-drush-commands.git
+git push -u origin main --tags
+```
+
+Then submit to Packagist.org.
+
+### References
+
+- [Drush 13 Commands Documentation](https://www.drush.org/13.x/commands/)
+- [Symfony Console Component](https://symfony.com/doc/current/console.html)
+- [Drush Attributes](https://github.com/drush-ops/drush/tree/13.x/src/Attributes)
+- [Composer Documentation](https://getcomposer.org/doc/)
+- [PSR-4 Autoloading Standard](https://www.php-fig.org/psr/psr-4/)
+- [Packagist.org](https://packagist.org) - PHP package repository
+
+### Contributing to This Library
+
+To contribute to `aegir/drush-commands`:
+
+1. Fork the repository
+2. Create a feature branch
+3. Add your command following the patterns above
+4. Test with a real Drupal project using a path repository
+5. Submit a pull request
+
+### Support
+
+For issues specific to this library, please file issues on the project's repository.
+
+For general Drush command development questions, consult the Drush documentation.
+
+---
+
 
 ## Event System
 
