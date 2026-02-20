@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision disable commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionDisableCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,8 +24,8 @@ final class ProvisionDisableCommands extends DrushCommands {
   /**
    * Disable a site.
    */
-  #[Command(name: 'provision:disable', aliases: ['pdisable'])]
-  #[Argument(name: 'context', description: 'Site context name')]
+  #[CLI\Command(name: 'provision:disable', aliases: ['pdisable'])]
+  #[CLI\Argument(name: 'context', description: 'Site context name')]
   public function disable(string $context): int {
     try {
       $this->manager->disable($context);

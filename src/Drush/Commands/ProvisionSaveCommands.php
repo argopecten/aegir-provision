@@ -2,18 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
-use Drush\Attributes\Option;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 use Symfony\Component\Yaml\Yaml;
 
 /**
  * Provision save commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionSaveCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -26,12 +25,12 @@ final class ProvisionSaveCommands extends DrushCommands {
   /**
    * Save or update context data.
    */
-  #[Command(name: 'provision:save', aliases: ['psave'])]
-  #[Argument(name: 'context', description: 'Context name, e.g. @example.com')]
-  #[Option(name: 'data', description: 'Context data as JSON or YAML string')]
-  #[Option(name: 'data-file', description: 'Context data file (JSON or YAML)')]
-  #[Option(name: 'type', description: 'Context type: server, platform, site')]
-  #[Option(name: 'delete', description: 'Delete context', type: 'boolean')]
+  #[CLI\Command(name: 'provision:save', aliases: ['psave'])]
+  #[CLI\Argument(name: 'context', description: 'Context name, e.g. @example.com')]
+  #[CLI\Option(name: 'data', description: 'Context data as JSON or YAML string')]
+  #[CLI\Option(name: 'data-file', description: 'Context data file (JSON or YAML)')]
+  #[CLI\Option(name: 'type', description: 'Context type: server, platform, site')]
+  #[CLI\Option(name: 'delete', description: 'Delete context')]
   public function save(
     string $context,
     array $options = ['data' => null, 'data-file' => null, 'type' => null, 'delete' => false]

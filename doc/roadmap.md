@@ -186,7 +186,7 @@ $registry->setDefault('http', 'nginx');
 
 **Use per-server:**
 ```bash
-drush provision:save @server_master http_service_type=nginx
+drush provision:save server_master --data='{"http_service_type": "nginx"}'
 ```
 
 **Service discovery:**
@@ -517,20 +517,20 @@ tests/
 ### Manual Testing Checklist
 
 **Critical Workflows** (before 1.0 release):
-- [ ] provision-save - Create server/platform/site contexts
-- [ ] provision-verify - Verify all context types
-- [ ] provision-install - Fresh Drupal installation
-- [ ] provision-import - Import existing site
-- [ ] provision-backup - Create backup (database and files)
-- [ ] provision-restore - Restore from backup
-- [ ] provision-deploy - Deploy backup to different site
-- [ ] provision-migrate - Migrate to different platform
-- [ ] provision-clone - Clone site with database
-- [ ] provision-enable - Enable disabled site
-- [ ] provision-disable - Disable active site
-- [ ] provision-lock - Lock site (maintenance mode)
-- [ ] provision-unlock - Unlock site
-- [ ] provision-delete - Delete site with cleanup
+- [ ] provision:save - Create server/platform/site contexts
+- [ ] provision:verify - Verify all context types
+- [ ] provision:install - Fresh Drupal installation
+- [ ] provision:import - Import existing site
+- [ ] provision:backup - Create backup (database and files)
+- [ ] provision:restore - Restore from backup
+- [ ] provision:deploy - Deploy backup to different site
+- [ ] provision:migrate - Migrate to different platform
+- [ ] provision:clone - Clone site with database
+- [ ] provision:enable - Enable disabled site
+- [ ] provision:disable - Disable active site
+- [ ] provision:lock - Lock site (maintenance mode)
+- [ ] provision:unlock - Unlock site
+- [ ] provision:delete - Delete site with cleanup
 - [ ] Apache vhost syntax validation (apache2ctl -t)
 - [ ] MySQL grants verification
 - [ ] SSL certificate generation and validation
@@ -1057,7 +1057,7 @@ These features are not critical for core functionality but would be nice additio
 **Priority**: Low - Optional commands  
 **Estimated effort**: 1-2 days
 
-- [ ] provision-backup-delete - Delete backup files
+- [ ] provision:backup-delete - Delete backup files
 - [ ] hostmaster-install - Install Aegir frontend (optional)
 - [ ] hostmaster-migrate - Migrate Aegir (optional)
 - [ ] hostmaster-uninstall - Uninstall Aegir (optional)

@@ -110,7 +110,7 @@ Understanding how Aegir Provision components work together.
 ```
 1. User creates context
    ↓
-2. drush provision:save @context --data='{...}'
+2. drush provision:save context_name --type=server --data='{...}'
    ↓
 3. ContextRepository saves to ~/.drush/sites/context.yml
    ↓
@@ -120,7 +120,7 @@ Understanding how Aegir Provision components work together.
 ### Operation Flow (Example: provision:install)
 
 ```
-1. ProvisionInstallCommand receives @site argument
+1. ProvisionInstallCommand receives site context_name argument
    ↓
 2. Loads contexts: site, platform, server
    ↓

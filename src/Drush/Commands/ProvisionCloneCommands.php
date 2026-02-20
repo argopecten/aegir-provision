@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision clone commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionCloneCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,13 +24,13 @@ final class ProvisionCloneCommands extends DrushCommands {
   /**
    * Clone a site to a new context.
    */
-  #[Command(name: 'provision:clone', aliases: ['pclone'])]
-  #[Argument(name: 'context', description: 'Source site context name')]
-  #[Argument(name: 'new-site', description: 'New site alias')]
-  #[Argument(name: 'platform', description: 'Target platform alias')]
-  public function cloneSite(string $context, string $newSite, ?string $platform = null): int {
+  #[CLI\Command(name: 'provision:clone', aliases: ['pclone'])]
+  #[CLI\Argument(name: 'context', description: 'Source site context name')]
+  #[CLI\Argument(name: 'newSite', description: 'New site alias')]
+  #[CLI\Option(name: 'platform', description: 'Target platform alias')]
+  public function cloneSite(string $context, string $newSite, array $options = ['platform' => null]): int {
     try {
-      $this->manager->cloneSite($context, $newSite, $platform ?? '');
+      $this->manager->cloneSite($context, $newSite, $options['platform'] ?? '');
       $this->logger()->success("Site cloned: $context to $newSite");
       return self::EXIT_SUCCESS;
     }

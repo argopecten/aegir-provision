@@ -53,17 +53,17 @@ doc/
 
 ```bash
 # Create server context
-drush provision-save @server_master --type=server \
+drush provision:save server_master --type=server \
   --data='{"aegir_root":"/var/aegir","web_group":"www-data"}'
 
 # Create platform context
-drush provision-save @platform_d11 --type=platform \
+drush provision:save platform_d11 --type=platform \
   --data='{"root":"/var/aegir/platforms/drupal-11","server":"server_master"}'
 
 # Create and install a site
-drush provision-save @example.com --type=site \
+drush provision:save example.com --type=site \
   --data='{"uri":"example.com","platform":"platform_d11","db_server":"server_master"}'
-drush provision-install @example.com
+drush provision:install example.com
 ```
 
 ---
@@ -98,23 +98,23 @@ composer require argopecten/aegir-provision
 ## 🔧 Available Commands
 
 ### Context Management
-- `provision-save` - Save or update context data
-- `provision-verify` - Verify server, platform, or site configuration
-- `provision-delete` - Delete a context
+- `provision:save` - Save or update context data
+- `provision:verify` - Verify server, platform, or site configuration
+- `provision:delete` - Delete a context
 
 ### Site Operations
-- `provision-install` - Install a new Drupal site
-- `provision-import` - Import an existing site
-- `provision-backup` - Create site backup
-- `provision-restore` - Restore from backup
-- `provision-deploy` - Deploy a backup to a site
+- `provision:install` - Install a new Drupal site
+- `provision:import` - Import an existing site
+- `provision:backup` - Create site backup
+- `provision:restore` - Restore from backup
+- `provision:deploy` - Deploy a backup to a site
 
 ### Site Lifecycle
-- `provision-migrate` - Migrate to different platform
-- `provision-clone` - Clone site to new context
-- `provision-enable` / `provision-disable` - Enable/disable site
-- `provision-lock` / `provision-unlock` - Lock/unlock site
-- `provision-login-reset` - Reset admin login
+- `provision:migrate` - Migrate to different platform
+- `provision:clone` - Clone site to new context
+- `provision:enable` / `provision:disable` - Enable/disable site
+- `provision:lock` / `provision:unlock` - Lock/unlock site
+- `provision:login-reset` - Reset admin login
 
 ---
 

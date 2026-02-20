@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision install commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionInstallCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,8 +24,8 @@ final class ProvisionInstallCommands extends DrushCommands {
   /**
    * Install a Drupal site.
    */
-  #[Command(name: 'provision:install', aliases: ['pinstall'])]
-  #[Argument(name: 'context', description: 'Site context name')]
+  #[CLI\Command(name: 'provision:install', aliases: ['pinstall'])]
+  #[CLI\Argument(name: 'context', description: 'Site context name')]
   public function install(string $context): int {
     try {
       $this->manager->install($context);

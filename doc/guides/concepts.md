@@ -109,9 +109,9 @@ Contexts are stored as **Drush site alias files** in `~/.drush/sites/`:
 Reference contexts using Drush alias syntax:
 
 ```bash
-drush provision-verify @server_master
-drush provision-verify @platform_d11
-drush provision-install @example.com
+drush provision:verify server_master
+drush provision:verify platform_d11
+drush provision:install example.com
 ```
 
 ---
@@ -120,11 +120,11 @@ drush provision-install @example.com
 
 Contexts are **immutable** - changes create new versions rather than modifying existing data.
 
-**Always use** `provision-save` to update contexts:
+**Always use** `provision:save` to update contexts:
 
 ```bash
 # ✓ CORRECT
-drush provision-save @example.com --data='{"ssl_enabled":true}'
+drush provision:save example.com --data='{"ssl_enabled":true}'
 
 # ✗ WRONG - Don't edit YAML files directly
 nano ~/.drush/sites/example.com.site.yml
@@ -160,7 +160,7 @@ Operations automatically resolve dependencies:
 # 2. Resolves platform context
 # 3. Resolves server context
 # 4. Uses all three for configuration
-drush provision-install @example.com
+drush provision:install example.com
 ```
 
 ---
@@ -336,10 +336,10 @@ See [Extension System](extension-system.md) for details.
 
 ### Backup/Restore Workflow
 
-1. `provision-backup @site` - Creates timestamped tarball
+1. `provision:backup site_name` - Creates timestamped tarball
 2. Store backup securely
-3. `provision-restore @site /path/to/backup.tar.gz` - Restores on failure
-4. Or `provision-deploy` to deploy backup to different site
+3. `provision:restore site_name /path/to/backup.tar.gz` - Restores on failure
+4. Or `provision:deploy` to deploy backup to different site
 
 ---
 
@@ -347,10 +347,10 @@ See [Extension System](extension-system.md) for details.
 
 ### Context Naming
 
-- Use descriptive names: `@production.example.com`, not `@site1`
+- Use descriptive names: `production.example.com`, not `site1`
 - Use consistent patterns: `@{env}.{domain}` for sites
-- Server contexts: `@server_{name}` (e.g., `@server_master`, `@server_web1`)
-- Platform contexts: `@platform_{version}` (e.g., `@platform_d11`, `@platform_d11_dev`)
+- Server contexts: `server_{name}` (e.g., `server_master`, `server_web1`)
+- Platform contexts: `platform_{version}` (e.g., `platform_d11`, `platform_d11_dev`)
 
 ### Directory Structure
 

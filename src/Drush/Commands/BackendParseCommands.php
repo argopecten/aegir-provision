@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Backend parse commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class BackendParseCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -20,7 +21,7 @@ final class BackendParseCommands extends DrushCommands {
   /**
    * Parse backend command output.
    */
-  #[Command(name: 'backend:parse')]
+  #[CLI\Command(name: 'backend:parse')]
   public function parse(): int {
     $data = stream_get_contents(STDIN);
     if ($data !== false && trim($data) !== '') {

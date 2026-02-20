@@ -35,8 +35,8 @@ Provision is delivered as a Composer package that registers Drush commands from 
 
 Drush 13.7+ required package layout:
 - `composer.json` (type: `drupal-drush`)
-- `src/Drush/Commands/` (auto-discovered command classes in the `Drush\Commands\provision` namespace)
-- `src/Drush/Commands/Provision*Commands.php` (one Drush command class per file, extending `DrushCommands`, using `#[Command]` attributes)
+- `src/Drush/Commands/` (auto-discovered command classes in the `Aegir\Provision\Drush\Commands` namespace)
+- `src/Drush/Commands/Provision*Commands.php` (one Drush command class per file, extending `DrushCommands`, using `#[CLI\Command]` attributes with `use Drush\Attributes as CLI;`)
 - `src/Drush/Commands/ProvisionAutowireTrait.php` (wraps Drush `AutowireTrait` and registers Provision services)
 - `src/Drush/ProvisionServiceRegistry.php` (registers Provision services in the Drush container for autowiring)
 - `src/Core/*` (core infrastructure: Context, ContextRepository, ContextType, AliasStore, Filesystem, ProcessRunner, ConfigPaths, PlatformRoot)
@@ -151,7 +151,7 @@ Provision is triggered by the Aegir frontend (Hostmaster) through Drush commands
 
 Responsibilities:
 - Create and update context aliases for server/platform/site.
-- Dispatch provisioning tasks (`provision-install`, `provision-verify`, `provision-migrate`, etc.).
+- Dispatch provisioning tasks (`provision:install`, `provision:verify`, `provision:migrate`, etc.).
 - Coordinate with hosting frontend tasks (`hosting-task`, `hosting-setup`, `hosting-resume`), invoked via `provision_backend_invoke()`.
 
 Code references:
@@ -181,7 +181,7 @@ Backend invocation contract:
   - `TaskManager::runTaskId()` calls backend with args `[$context_name]` and options from the task record.
   - The queue worker (`hosting_task` queue) invokes `TaskManager::runTaskId()` and logs stdout/stderr to task logs.
 - Exit code handling: any non-zero exit code marks the task as failed. Provision must return a non-zero exit code for failure conditions and write useful output to stdout/stderr.
-- Command dispatch: Provision Drush commands should accept a leading `context_name` argument (without `@`) and internally switch to that context when the backend alias is fixed (for example, `drush @server_master provision-verify example.com`).
+- Command dispatch: Provision Drush commands accept a leading `context_name` argument (without `@`) and internally switch to that context (for example, `drush provision:verify example.com`).
 
 Context name and alias contract:
 - Frontend stores context names in `hosting_context.context_name` without `@` (see `hosting/src/Service/ContextRegistry.php`).
@@ -214,7 +214,7 @@ Expected by frontend:
 - **Context argument**: backend accepts `context_name` as the first argument (without `@`), even when a fixed backend alias is used to invoke Drush.
 - **Exit codes**: non-zero exit codes on failure, zero on success. Failures must not return zero.
 - **Output**: stdout/stderr should be meaningful; task logs capture both channels for operator troubleshooting.
-- **Idempotent verify**: `provision-verify` should be safe to run repeatedly without destructive effects.
+- **Idempotent verify**: `provision:verify` should be safe to run repeatedly without destructive effects.
 - **Queue safety**: backend commands must tolerate being run from queue workers and should avoid interactive prompts.
 
 ## Backend -> Frontend expectations
@@ -442,21 +442,21 @@ Modern approach:
 Provision defines Drush 13.7+ commands as Symfony Console classes in `src/Drush/Commands/`.
 
 Implemented commands:
-- `provision-save`: Save or update context data (with `--data`, `--data-file`, `--type`, `--delete` options)
-- `provision-verify` (aliases: `pv`, `verify`): Verify server, platform, or site context
-- `provision-install`: Install a Drupal site
+- `provision:save`: Save or update context data (with `--data`, `--data-file`, `--type`, `--delete` options)
+- `provision:verify` (aliases: `pv`, `verify`): Verify server, platform, or site context
+- `provision:install`: Install a Drupal site
 - `provision-import`: Import an existing site into Aegir
-- `provision-backup`: Create a backup of a site (returns backup file path)
-- `provision-restore`: Restore a site from backup
-- `provision-deploy`: Deploy a backup to a site
-- `provision-migrate`: Migrate a site to a different platform
-- `provision-clone`: Clone a site to a new site (optionally on different platform)
-- `provision-enable`: Enable a site (move Apache vhost to active)
-- `provision-disable`: Disable a site (move Apache vhost to disabled)
+- `provision:backup`: Create a backup of a site (returns backup file path)
+- `provision:restore`: Restore a site from backup
+- `provision:deploy`: Deploy a backup to a site
+- `provision:migrate`: Migrate a site to a different platform
+- `provision:clone`: Clone a site to a new site (optionally on different platform)
+- `provision:enable`: Enable a site (move Apache vhost to active)
+- `provision:disable`: Disable a site (move Apache vhost to disabled)
 - `provision-lock`: Lock a site
 - `provision-unlock`: Unlock a site
-- `provision-delete`: Delete a site context (with `--delete-files`, `--delete-db` options)
-- `provision-login-reset`: Reset admin login for a site
+- `provision:delete`: Delete a site context (with `--delete-files`, `--delete-db` options)
+- `provision:login-reset`: Reset admin login for a site
 - `backend-parse`: Parse backend command output (legacy compatibility)
 
 Command implementation (Drush 13.7+ required):
@@ -493,10 +493,10 @@ Drush 13.7+ uses attribute-based command definitions with the `DrushCommands` ba
 Required features:
 - ✅ YAML site alias storage in `~/.drush/sites/aegir/*.site.yml` (managed by AliasStore)
 - ✅ PSR-4 autoloading with `Aegir\Provision\` namespace for core classes
-- ⚠️ Command classes under `src/Drush/Commands` in `Drush\Commands\provision` namespace
+- ✅ Command classes under `src/Drush/Commands` in `Aegir\Provision\Drush\Commands` namespace
 - ⚠️ Commands extend `Drush\Commands\DrushCommands` (NOT raw Symfony Console `Command`)
-- ⚠️ Commands use `#[Command]`, `#[Argument]`, `#[Option]` attributes (NOT `#[AsCommand]`)
-- ⚠️ One command per class file, with method-based command definitions (NOT `execute()`)
+- ⚠️ Commands use `#[CLI\Command]`, `#[CLI\Argument]`, `#[CLI\Option]` attributes with `use Drush\Attributes as CLI;` (NOT `#[AsCommand]`)
+- ⚠️ All command classes require `#[CLI\Bootstrap(level: 0)]` class attribute to avoid Drupal bootstrap deferral
 - ✅ `ProvisionAutowireTrait` for constructor-based dependency injection
 - ✅ ProcessRunner for external command execution (replaces `drush_shell_exec`)
 - ✅ Strict typing and PHP 8.3+ syntax throughout codebase
@@ -746,8 +746,8 @@ Legacy Provision used procedural PHP with hooks (`provision.inc`, `Provision_*` 
 ### Best Practices
 
 **Context Management**:
-- Always use `provision-save` to modify contexts - never edit YAML files directly
-- Run `provision-verify` after making context changes
+- Always use `provision:save` to modify contexts - never edit YAML files directly
+- Run `provision:verify` after making context changes
 - Keep context backups before major changes
 - Use descriptive context names (e.g., `@platform_d11_2024` not `@platform1`)
 
@@ -768,7 +768,7 @@ Legacy Provision used procedural PHP with hooks (`provision.inc`, `Provision_*` 
 
 **Operations Workflow**:
 1. Test on staging platform before production
-2. Always backup before migrations: `drush provision-backup @site`
+2. Always backup before migrations: `drush provision:backup site_name`
 3. Monitor Apache/MySQL logs during operations
 4. Verify configurations before enabling sites
 5. Use `--dry-run` when available (future feature)
@@ -818,22 +818,22 @@ This matrix maps D7 commands to D11 implementation requirements. Based on analys
 
 | D7 Command | D11 Status | Bootstrap | Refactoring Notes |
 |------------|-----------|-----------|-------------------|
-| provision-save | ✅ Implemented | DRUSH | Context persistence via ContextRepository/AliasStore. D7 used `Provision_Config_Drushrc_Alias`, D11 uses AliasStore. |
-| provision-verify | ✅ Implemented | DRUSH | Multi-context dispatch, service orchestration. D7 invoked hooks, D11 uses ProvisionManager explicit methods. |
-| provision-install | ✅ Implemented | DRUPAL_ROOT | Drush site:install integration, db creation. D7 used `provision-install-backend`, D11 uses ProcessRunner. |
-| provision-backup | ✅ Implemented | DRUPAL_ROOT | Tarball + mysqldump, returns backup path. Both versions create `{uri}-{timestamp}.tar.gz`. |
-| provision-restore | ✅ Implemented | DRUPAL_ROOT | Atomic directory swap, db import. D7 created pre-restore backup, D11 maintains same pattern. |
-| provision-deploy | ✅ Implemented | DRUPAL_ROOT | Backup deployment to different context. D7 updated file references with `old_uri`, D11 equivalent. |
-| provision-migrate | ✅ Implemented | DRUPAL_ROOT | Platform change, update.php for version changes. D7 used hooks, D11 uses explicit orchestration. |
-| provision-clone | ✅ Implemented | DRUPAL_ROOT | New context + db duplication. D7 used backup/deploy, D11 similar pattern. |
+| provision:save | ✅ Implemented | DRUSH | Context persistence via ContextRepository/AliasStore. D7 used `Provision_Config_Drushrc_Alias`, D11 uses AliasStore. |
+| provision:verify | ✅ Implemented | DRUSH | Multi-context dispatch, service orchestration. D7 invoked hooks, D11 uses ProvisionManager explicit methods. |
+| provision:install | ✅ Implemented | DRUPAL_ROOT | Drush site:install integration, db creation. D7 used `provision:install-backend`, D11 uses ProcessRunner. |
+| provision:backup | ✅ Implemented | DRUPAL_ROOT | Tarball + mysqldump, returns backup path. Both versions create `{uri}-{timestamp}.tar.gz`. |
+| provision:restore | ✅ Implemented | DRUPAL_ROOT | Atomic directory swap, db import. D7 created pre-restore backup, D11 maintains same pattern. |
+| provision:deploy | ✅ Implemented | DRUPAL_ROOT | Backup deployment to different context. D7 updated file references with `old_uri`, D11 equivalent. |
+| provision:migrate | ✅ Implemented | DRUPAL_ROOT | Platform change, update.php for version changes. D7 used hooks, D11 uses explicit orchestration. |
+| provision:clone | ✅ Implemented | DRUPAL_ROOT | New context + db duplication. D7 used backup/deploy, D11 similar pattern. |
 | provision-import | ✅ Implemented | DRUPAL_ROOT | Detect existing site, parse settings.php. D7 inspected settings for db creds, D11 maintains compatibility. |
-| provision-enable | ✅ Implemented | DRUPAL_ROOT | Move vhost from `disabled.d/` to `vhost.d/`. Same pattern in both versions. |
-| provision-disable | ✅ Implemented | DRUPAL_ROOT | Move vhost to `disabled.d/`, show maintenance page. Same pattern in both versions. |
+| provision:enable | ✅ Implemented | DRUPAL_ROOT | Move vhost from `disabled.d/` to `vhost.d/`. Same pattern in both versions. |
+| provision:disable | ✅ Implemented | DRUPAL_ROOT | Move vhost to `disabled.d/`, show maintenance page. Same pattern in both versions. |
 | provision-lock | ✅ Implemented | DRUPAL_ROOT | Set `platform_locked` flag. Simple flag operation in both versions. |
 | provision-unlock | ✅ Implemented | DRUPAL_ROOT | Clear `platform_locked` flag. Simple flag operation in both versions. |
-| provision-delete | ✅ Implemented | DRUSH | Multi-phase deletion with final backup. D7 verified no dependent contexts, D11 same. |
-| provision-login-reset | ✅ Implemented | DRUPAL_ROOT | Invoke `drush user:login`. D7 used `drush_invoke_process`, D11 uses ProcessRunner. |
-| provision-backup-delete | 📋 Not implemented | DRUSH | Delete backup file. Simple file removal (low priority/optional). |
+| provision:delete | ✅ Implemented | DRUSH | Multi-phase deletion with final backup. D7 verified no dependent contexts, D11 same. |
+| provision:login-reset | ✅ Implemented | DRUPAL_ROOT | Invoke `drush user:login`. D7 used `drush_invoke_process`, D11 uses ProcessRunner. |
+| provision:backup-delete | 📋 Not implemented | DRUSH | Delete backup file. Simple file removal (low priority/optional). |
 | backend-parse | ✅ Implemented | DRUSH | Parse backend output (legacy compat). For frontend integration. |
 | hostmaster-install | 📋 Not implemented | DRUSH | Install Aegir hosting system. Orchestrates frontend installation (low priority/optional). |
 | hostmaster-migrate | 📋 Not implemented | DRUSH | Migrate Aegir to new platform. Updates hosting system (low priority/optional). |
@@ -904,6 +904,7 @@ class ContextRepository {
 }
 
 // D11: Usage - explicit injection
+#[CLI\Bootstrap(level: 0)]
 class ProvisionInstallCommands extends DrushCommands {
     use ProvisionAutowireTrait;
     
@@ -913,8 +914,8 @@ class ProvisionInstallCommands extends DrushCommands {
         parent::__construct();
     }
     
-    #[Command(name: 'provision:install')]
-    #[Argument(name: 'site', description: 'Site context name')]
+    #[CLI\Command(name: 'provision:install')]
+    #[CLI\Argument(name: 'site', description: 'Site context name')]
     public function install(string $site): int {
         // Explicit loading (no globals)
         $siteContext = $this->contexts->load($site);
@@ -1133,26 +1134,24 @@ function drush_provision_install() {
 // D11: No hook system, explicit service orchestration
 
 // src/Drush/Commands/ProvisionInstallCommands.php
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
 use Drush\Commands\DrushCommands;
-use Drush\Attributes\Command;
-use Drush\Attributes\Argument;
-use Psr\Log\LoggerInterface;
+use Drush\Attributes as CLI;
 
+#[CLI\Bootstrap(level: 0)]
 class ProvisionInstallCommands extends DrushCommands {
     use ProvisionAutowireTrait;
     
     public function __construct(
         private readonly ProvisionManager $manager,
-        private readonly LoggerInterface $logger
     ) {
         parent::__construct();
     }
     
-    #[Command(name: 'provision:install', description: 'Install a Drupal site')]
-    #[Argument(name: 'site', description: 'Site context name')]
+    #[CLI\Command(name: 'provision:install', description: 'Install a Drupal site')]
+    #[CLI\Argument(name: 'site', description: 'Site context name')]
     public function install(string $site): int {
         try {
             // Single orchestrated method call
@@ -1288,7 +1287,7 @@ class ProvisionManager {
 1. 📋 **Nginx service** - D7 had full Nginx support (low priority/optional)
 2. 📋 **Cluster/Pack services** - Multi-webserver configurations (low priority/optional)
 3. 📋 **Remote server support** - SSH/rsync for remote operations (low priority/optional)
-4. 📋 **provision-backup-delete** - Delete backup files (low priority/optional)
+4. 📋 **provision:backup-delete** - Delete backup files (low priority/optional)
 5. ⚠️ **Comprehensive testing** - D7 had minimal tests, D11 needs more (clear todo)
 6. ❌ **Drush make integration** - Will NOT be implemented. D11 version supports: a) manual builds, and b) Composer projects from git repositories (GitHub, GitLab, etc.)
 7. 📋 **Platform locking UI integration** - Frontend coordination (low priority/optional)
@@ -1315,7 +1314,7 @@ class ProvisionManager {
 3. **Medium Priority**: Implement Nginx service
 4. **Medium Priority**: Add remote server support (SSH/rsync)
 5. **Low Priority**: Cluster/Pack multi-webserver support
-6. **Low Priority**: provision-backup-delete command
+6. **Low Priority**: provision:backup-delete command
 
 ---
 
@@ -1365,7 +1364,7 @@ class ProvisionManager {
 ### Migration Path for Users
 
 **For Aegir Operators**:
-1. Commands have same names (may need namespace: `provision:install` vs `provision-install`)
+1. Commands have same names (may need namespace: `provision:install` vs `provision:install`)
 2. Context aliases compatible between versions
 3. Backup files compatible
 4. Can run both D7 and D11 side-by-side (different directories)

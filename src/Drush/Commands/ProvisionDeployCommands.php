@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision deploy commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionDeployCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,9 +24,9 @@ final class ProvisionDeployCommands extends DrushCommands {
   /**
    * Deploy a backup to a site.
    */
-  #[Command(name: 'provision:deploy', aliases: ['pdeploy'])]
-  #[Argument(name: 'context', description: 'Site context name')]
-  #[Argument(name: 'backup-file', description: 'Backup file to deploy')]
+  #[CLI\Command(name: 'provision:deploy', aliases: ['pdeploy'])]
+  #[CLI\Argument(name: 'context', description: 'Site context name')]
+  #[CLI\Argument(name: 'backupFile', description: 'Backup file to deploy')]
   public function deploy(string $context, string $backupFile): int {
     try {
       $this->manager->deploy($context, $backupFile);

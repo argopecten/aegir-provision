@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision backup commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionBackupCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,9 +24,9 @@ final class ProvisionBackupCommands extends DrushCommands {
   /**
    * Create a site backup.
    */
-  #[Command(name: 'provision:backup', aliases: ['pbackup'])]
-  #[Argument(name: 'context', description: 'Site context name')]
-  #[Argument(name: 'backup-file', description: 'Optional backup file path')]
+  #[CLI\Command(name: 'provision:backup', aliases: ['pbackup'])]
+  #[CLI\Argument(name: 'context', description: 'Site context name')]
+  #[CLI\Argument(name: 'backupFile', description: 'Optional backup file path')]
   public function backup(string $context, ?string $backupFile = null): int {
     try {
       $file = $this->manager->backup($context, $backupFile);

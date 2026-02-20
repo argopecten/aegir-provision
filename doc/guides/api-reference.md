@@ -688,7 +688,7 @@ All events extend `ProvisionEvent`:
 
 ### Available Commands
 
-Target command namespace: `Drush\Commands\provision` (legacy code may still use `Aegir\Provision\Drush\Commands`).
+Target command namespace: `Aegir\Provision\Drush\Commands` (Drush 13.7+ discovers commands via the `\Drush\Commands\` sub-namespace in PSR-4 roots).
 
 **Context Management**:
 - `ProvisionSaveCommands` - `provision:save` - Save or update context
@@ -722,11 +722,12 @@ Enables dependency injection in command classes.
 
 **Usage**:
 ```php
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Drush\Commands\DrushCommands;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 
+#[CLI\Bootstrap(level: 0)]
 class MyCommands extends DrushCommands
 {
     use ProvisionAutowireTrait;
@@ -737,7 +738,7 @@ class MyCommands extends DrushCommands
         parent::__construct();
     }
     
-    #[Command(name: 'provision:my-command', description: 'My command description')]
+    #[CLI\Command(name: 'provision:my-command', description: 'My command description')]
     public function myCommand(): int {
         // Command logic
         return self::EXIT_SUCCESS;

@@ -57,27 +57,24 @@ Each command follows this structure:
 ```php
 <?php
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
-use Drush\Attributes\Command;
-use Drush\Attributes\Argument;
 
 class ProvisionInstallCommands extends DrushCommands
 {
     use ProvisionAutowireTrait;
     
-    private ProvisionManager $manager;
-    
-    public function __construct(ProvisionManager $manager)
-    {
+    public function __construct(
+        private readonly ProvisionManager $manager
+    ) {
         parent::__construct();
-        $this->manager = $manager;
     }
     
-    #[Command(name: 'provision:install', description: 'Install a Drupal site')]
-    #[Argument(name: 'site', description: 'Site context name')]
+    #[CLI\Command(name: 'provision:install')]
+    #[CLI\Argument(name: 'site', description: 'Site context name')]
     public function install(string $site): int
     {
         $this->manager->install($site);
@@ -151,19 +148,19 @@ Commands are auto-discovered when:
 2. Extend `Drush\Commands\DrushCommands` base class
 3. Use `#[Command]` attribute on public methods
 4. Filename ends with `*Commands.php`
-5. Use `Drush\Commands\provision` namespace
+5. Use `Aegir\Provision\Drush\Commands` namespace
 6. Package installed via Composer
 
 ### Namespace Rules
 
-For Drush 13.7+ site-wide command discovery, commands must use `Drush\Commands\provision` namespace.
+For Drush 13.7+ site-wide command discovery, the PSR-4 autoload root namespace must be registered in `composer.json`, and commands must be placed under the `Drush\Commands` sub-namespace.
 
 **Correct**:
 ```php
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 ```
 
-**Note**: Core Aegir Provision classes use `Aegir\Provision` namespace, but Drush commands must be in `Drush\Commands` namespace for auto-discovery.
+**Note**: The PSR-4 root `Aegir\Provision\` maps to `src/`, so `Aegir\Provision\Drush\Commands\` resolves to `src/Drush/Commands/`. Drush 13.7+ discovers commands by scanning PSR-4 namespaces for the `\Drush\Commands\` sub-namespace pattern.
 
 ### Service Registration
 
@@ -178,21 +175,21 @@ Services are registered via `ProvisionAutowireTrait` during Drush bootstrap (no 
 1. **Create Command Class**:
 ```php
 // src/Drush/Commands/ProvisionMyCommands.php
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
-use Drush\Attributes\Command;
 
 class ProvisionMyCommands extends DrushCommands
 {
     use ProvisionAutowireTrait;
     
-    public function __construct(private ProvisionManager $manager)
+    public function __construct(private readonly ProvisionManager $manager)
     {
         parent::__construct();
     }
     
-    #[Command(name: 'provision:my-operation', description: 'My operation description')]
+    #[CLI\Command(name: 'provision:my-operation')]
     public function myOperation(): int
     {
         // Implementation
@@ -230,8 +227,8 @@ Commands should:
 
 **Example**:
 ```php
-#[Command(name: 'provision:install')]
-#[Argument(name: 'site', description: 'Site context name')]
+#[CLI\Command(name: 'provision:install')]
+#[CLI\Argument(name: 'site', description: 'Site context name')]
 public function install(string $site): int
 {
     try {

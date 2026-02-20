@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision verify commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionVerifyCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,8 +24,8 @@ final class ProvisionVerifyCommands extends DrushCommands {
   /**
    * Verify server, platform, or site context.
    */
-  #[Command(name: 'provision:verify', aliases: ['pv', 'verify'])]
-  #[Argument(name: 'context', description: 'Context name, e.g. @example.com')]
+  #[CLI\Command(name: 'provision:verify', aliases: ['pv', 'verify'])]
+  #[CLI\Argument(name: 'context', description: 'Context name, e.g. @example.com')]
   public function verify(string $context): int {
     try {
       $this->manager->verify($context);

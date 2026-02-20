@@ -153,9 +153,6 @@ declare(strict_types=1);
 namespace Drupal\Platform\Drush\Commands;
 
 use Drush\Attributes as CLI;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
-use Drush\Attributes\Option;
 use Drush\Boot\DrupalBootLevels;
 use Drush\Commands\DrushCommands;
 
@@ -166,13 +163,13 @@ final class PlatformInstallCommands extends DrushCommands
     parent::__construct();
   }
 
-  #[Command(
+  #[CLI\Command(
     name: 'platform:install',
     description: 'Provision a Drupal platform (Composer only)'
   )]
   #[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
-  #[Argument(name: 'argument-name', description: 'Description of the argument')]
-  #[Option(name: 'option-name', description: 'Description of the option', default: 'default-value')]
+  #[CLI\Argument(name: 'argumentName', description: 'Description of the argument')]
+  #[CLI\Option(name: 'option-name', description: 'Description of the option')]
   public function install(string $argumentName, string $optionName = 'default-value'): int
   {
     $io = $this->io();
@@ -221,7 +218,7 @@ namespace Drupal\Platform\Drush\Commands;
 
 #### 2. Command Attribute
 ```php
-#[Command(
+#[CLI\Command(
   name: 'my:command',
   description: 'Brief description',
   aliases: ['mc']
@@ -615,8 +612,6 @@ declare(strict_types=1);
 namespace Drupal\Platform\Drush\Commands;
 
 use Drush\Attributes as CLI;
-use Drush\Attributes\Command;
-use Drush\Attributes\Option;
 use Drush\Boot\DrupalBootLevels;
 use Drush\Commands\DrushCommands;
 use Symfony\Component\Process\Process;
@@ -628,20 +623,18 @@ final class PlatformInstallCommands extends DrushCommands
     parent::__construct();
   }
 
-  #[Command(
+  #[CLI\Command(
     name: 'platform:install',
     description: 'Provision a Drupal platform (Composer only)',
     aliases: ['pfi']
   )]
   #[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
-  #[Option(
+  #[CLI\Option(
     name: 'working-dir',
-    description: 'The working directory containing composer.json',
-    default: '.'
+    description: 'The working directory containing composer.json'
   )]
-  #[Option(
+  #[CLI\Option(
     name: 'no-dev',
-    type: 'boolean',
     description: 'Skip dev dependencies'
   )]
   public function install(string $workingDir = '.', bool $noDev = false): int
@@ -771,15 +764,9 @@ declare(strict_types=1);
 namespace MyVendor\DrushCommands\Drush\Commands;
 
 use Drush\Attributes as CLI;
-use Drush\Attributes\Command;
 use Drush\Boot\DrupalBootLevels;
 use Drush\Commands\DrushCommands;
 
-#[Command(
-  name: 'hello:world',
-  description: 'A simple hello world command',
-  aliases: ['hw']
-)]
 #[CLI\Bootstrap(level: DrupalBootLevels::NONE)]
 final class HelloCommands extends DrushCommands
 {
@@ -788,6 +775,11 @@ final class HelloCommands extends DrushCommands
     parent::__construct();
   }
 
+  #[CLI\Command(
+    name: 'hello:world',
+    description: 'A simple hello world command',
+    aliases: ['hw']
+  )]
   public function hello(): int
   {
     $this->io()->success('Hello, World!');
@@ -1544,10 +1536,10 @@ Once registered, services are automatically used based on server configuration:
 **Option 1: Set per-server**
 ```bash
 # Configure server to use Nginx
-drush provision:save @server_master http_service_type=nginx
+drush provision:save server_master --data='{"http_service_type": "nginx"}'
 
 # All sites on this server will use Nginx
-drush provision:verify @server_master
+drush provision:verify server_master
 ```
 
 **Option 2: Set globally as default**

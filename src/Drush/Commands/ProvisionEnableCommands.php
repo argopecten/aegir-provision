@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision enable commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionEnableCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,8 +24,8 @@ final class ProvisionEnableCommands extends DrushCommands {
   /**
    * Enable a site.
    */
-  #[Command(name: 'provision:enable', aliases: ['penable'])]
-  #[Argument(name: 'context', description: 'Site context name')]
+  #[CLI\Command(name: 'provision:enable', aliases: ['penable'])]
+  #[CLI\Argument(name: 'context', description: 'Site context name')]
   public function enable(string $context): int {
     try {
       $this->manager->enable($context);

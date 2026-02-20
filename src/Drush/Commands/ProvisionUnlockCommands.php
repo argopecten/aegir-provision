@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision unlock commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionUnlockCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,8 +24,8 @@ final class ProvisionUnlockCommands extends DrushCommands {
   /**
    * Unlock a site or context.
    */
-  #[Command(name: 'provision:unlock', aliases: ['punlock'])]
-  #[Argument(name: 'context', description: 'Context name')]
+  #[CLI\Command(name: 'provision:unlock', aliases: ['punlock'])]
+  #[CLI\Argument(name: 'context', description: 'Context name')]
   public function unlock(string $context): int {
     try {
       $this->manager->unlock($context);

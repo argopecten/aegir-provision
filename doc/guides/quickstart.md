@@ -47,7 +47,7 @@ You should see a list of provision commands.
 The server context represents your infrastructure node:
 
 ```bash
-drush provision-save @server_master --type=server --data='{
+drush provision:save server_master --type=server --data='{
   "aegir_root": "/var/aegir",
   "web_group": "www-data",
   "http_port": 80,
@@ -59,7 +59,7 @@ drush provision-save @server_master --type=server --data='{
 ### Step 2: Verify Server
 
 ```bash
-drush provision-verify @server_master
+drush provision:verify server_master
 ```
 
 This will:
@@ -76,7 +76,7 @@ This will:
 A platform is a Drupal codebase:
 
 ```bash
-drush provision-save @platform_d11 --type=platform --data='{
+drush provision:save platform_d11 --type=platform --data='{
   "root": "/var/aegir/platforms/drupal-11",
   "server": "server_master"
 }'
@@ -94,7 +94,7 @@ composer create-project drupal/recommended-project:^11 drupal-11
 ### Step 2: Verify Platform
 
 ```bash
-drush provision-verify @platform_d11
+drush provision:verify platform_d11
 ```
 
 This will:
@@ -105,7 +105,7 @@ This will:
 ### Step 3: Create Site Context
 
 ```bash
-drush provision-save @example.local --type=site --data='{
+drush provision:save example.local --type=site --data='{
   "uri": "example.local",
   "platform": "platform_d11",
   "db_server": "server_master",
@@ -118,7 +118,7 @@ drush provision-save @example.local --type=site --data='{
 ### Step 4: Install the Site
 
 ```bash
-drush provision-install @example.local
+drush provision:install example.local
 ```
 
 This will:
@@ -157,7 +157,7 @@ Navigate to `http://example.local` - you should see your new Drupal site!
 ### Backup a Site
 
 ```bash
-drush provision-backup @example.local
+drush provision:backup example.local
 ```
 
 Backup will be saved to `/var/aegir/backups/example.local/`
@@ -165,47 +165,47 @@ Backup will be saved to `/var/aegir/backups/example.local/`
 ### Restore from Backup
 
 ```bash
-drush provision-restore @example.local /var/aegir/backups/example.local/backup-2026-01-31.tar.gz
+drush provision:restore example.local /var/aegir/backups/example.local/backup-2026-01-31.tar.gz
 ```
 
 ### Migrate to New Platform
 
 ```bash
 # Create new platform
-drush provision-save @platform_d11_v2 --type=platform --data='{
+drush provision:save platform_d11_v2 --type=platform --data='{
   "root": "/var/aegir/platforms/drupal-11-updated",
   "server": "server_master"
 }'
-drush provision-verify @platform_d11_v2
+drush provision:verify platform_d11_v2
 
 # Migrate site
-drush provision-migrate @example.local @platform_d11_v2
+drush provision:migrate example.local platform_d11_v2
 ```
 
 ### Clone a Site
 
 ```bash
-drush provision-clone @example.local @example-staging.local
+drush provision:clone example.local example-staging.local
 ```
 
 ### Disable/Enable a Site
 
 ```bash
 # Temporarily disable (removes vhost)
-drush provision-disable @example.local
+drush provision:disable example.local
 
 # Re-enable
-drush provision-enable @example.local
+drush provision:enable example.local
 ```
 
 ### Delete a Site
 
 ```bash
 # Delete context, database, and files
-drush provision-delete @example.local --delete-db --delete-files
+drush provision:delete example.local --delete-db --delete-files
 
 # Or just delete the context (keep database/files)
-drush provision-delete @example.local
+drush provision:delete example.local
 ```
 
 ---
@@ -214,7 +214,7 @@ drush provision-delete @example.local
 
 ### Command Not Found
 
-If `drush provision-*` commands are not found:
+If `drush provision:*` commands are not found:
 
 ```bash
 # Verify installation

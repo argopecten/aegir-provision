@@ -32,8 +32,7 @@
   },
   "autoload": {
     "psr-4": {
-      "Aegir\\Provision\\": "src/",
-      "Drush\\Commands\\provision\\": "src/Drush/Commands/"
+      "Aegir\\Provision\\": "src/"
     }
   },
   "extra": {

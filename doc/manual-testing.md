@@ -17,16 +17,16 @@ This guide provides step-by-step instructions for manually testing core Aegir Pr
 ### 1. Create Test Server Context
 
 ```bash
-drush provision-save server_master \
-  --context_type=server \
-  --web_service_type=apache \
-  --db_service_type=mysql \
-  --http_port=80 \
-  --https_port=443 \
-  --web_group=www-data \
-  --db_host=localhost \
-  --db_port=3306 \
-  --db_root_password=YOURROOTPASSWORD
+drush provision:save server_master --type=server --data='{
+  "web_service_type": "apache",
+  "db_service_type": "mysql",
+  "http_port": 80,
+  "https_port": 443,
+  "web_group": "www-data",
+  "db_host": "localhost",
+  "db_port": 3306,
+  "db_root_password": "YOURROOTPASSWORD"
+}'
 ```
 
 **Expected Result:**
@@ -37,7 +37,7 @@ drush provision-save server_master \
 **Validation:**
 ```bash
 cat ~/.drush/provision/server_master.yml
-drush provision-status server_master
+drush provision:status server_master
 ```
 
 ### 2. Verify Test Database Connection
@@ -75,11 +75,11 @@ composer require drush/drush
 #### Step 1.2: Create Platform Context
 
 ```bash
-drush provision-save platform_test01 \
-  --context_type=platform \
-  --root=/var/aegir/platforms/test-platform-01/web \
-  --server=server_master \
-  --drupal_version=11
+drush provision:save platform_test01 --type=platform --data='{
+  "root": "/var/aegir/platforms/test-platform-01/web",
+  "server": "server_master",
+  "drupal_version": 11
+}'
 ```
 
 **Expected Result:**
@@ -89,13 +89,13 @@ drush provision-save platform_test01 \
 **Validation:**
 ```bash
 cat ~/.drush/provision/platform_test01.yml
-drush provision-status platform_test01
+drush provision:status platform_test01
 ```
 
 #### Step 1.3: Run Platform Install
 
 ```bash
-drush @platform_test01 provision-install
+drush provision:install platform_test01
 ```
 
 **Expected Result:**
@@ -120,7 +120,7 @@ ls -ld /var/aegir/platforms/test-platform-01/web
 #### Step 2.1: Run Platform Verify
 
 ```bash
-drush @platform_test01 provision-verify
+drush provision:verify platform_test01
 ```
 
 **Expected Result:**
@@ -133,7 +133,7 @@ drush @platform_test01 provision-verify
 **Validation:**
 ```bash
 # Check verify event was dispatched
-drush @platform_test01 provision-verify -vvv 2>&1 | grep -i "event"
+drush provision:verify platform_test01 -vvv 2>&1 | grep -i "event"
 
 # Verify platform context updated
 cat ~/.drush/provision/platform_test01.yml | grep verify_date
@@ -146,7 +146,7 @@ cat ~/.drush/provision/platform_test01.yml | grep verify_date
 sudo mv /var/aegir/platforms/test-platform-01/web /var/aegir/platforms/test-platform-01/web.backup
 
 # Run verify (should fail)
-drush @platform_test01 provision-verify
+drush provision:verify platform_test01
 
 # Restore directory
 sudo mv /var/aegir/platforms/test-platform-01/web.backup /var/aegir/platforms/test-platform-01/web
@@ -168,17 +168,17 @@ sudo mv /var/aegir/platforms/test-platform-01/web.backup /var/aegir/platforms/te
 mkdir -p /var/aegir/platforms/test-delete-platform/web
 echo "<?php" > /var/aegir/platforms/test-delete-platform/web/index.php
 
-drush provision-save platform_delete_test \
-  --context_type=platform \
-  --root=/var/aegir/platforms/test-delete-platform/web \
-  --server=server_master \
-  --drupal_version=11
+drush provision:save platform_delete_test --type=platform --data='{
+  "root": "/var/aegir/platforms/test-delete-platform/web",
+  "server": "server_master",
+  "drupal_version": 11
+}'
 ```
 
 #### Step 3.2: Run Platform Delete
 
 ```bash
-drush @platform_delete_test provision-delete
+drush provision:delete platform_delete_test
 ```
 
 **Expected Result:**
@@ -238,15 +238,15 @@ mysql -u${SITE_DB_USER} -p${SITE_DB_PASS} -e "SHOW DATABASES;" | grep ${SITE_DB_
 #### Step 4.2: Create Site Context
 
 ```bash
-drush provision-save site_test01 \
-  --context_type=site \
-  --platform=platform_test01 \
-  --uri=test01.local.example.com \
-  --db_name=${SITE_DB_NAME} \
-  --db_user=${SITE_DB_USER} \
-  --db_passwd=${SITE_DB_PASS} \
-  --db_host=localhost \
-  --db_port=3306
+drush provision:save site_test01 --type=site --data='{
+  "platform": "platform_test01",
+  "uri": "test01.local.example.com",
+  "db_name": "'${SITE_DB_NAME}'",
+  "db_user": "'${SITE_DB_USER}'",
+  "db_passwd": "'${SITE_DB_PASS}'",
+  "db_host": "localhost",
+  "db_port": 3306
+}'
 ```
 
 **Expected Result:**
@@ -257,7 +257,7 @@ drush provision-save site_test01 \
 **Validation:**
 ```bash
 cat ~/.drush/provision/site_test01.yml
-drush provision-status site_test01
+drush provision:status site_test01
 ```
 
 #### Step 4.3: Add Hosts Entry
@@ -269,7 +269,7 @@ sudo bash -c 'echo "127.0.0.1 test01.local.example.com" >> /etc/hosts'
 #### Step 4.4: Run Site Install
 
 ```bash
-drush @site_test01 provision-install \
+drush provision:install site_test01 \
   --site_name="Test Site 01" \
   --site_mail=admin@example.com \
   --account_name=admin \
@@ -317,7 +317,7 @@ curl -I http://test01.local.example.com
 #### Step 5.1: Run Site Verify
 
 ```bash
-drush @site_test01 provision-verify
+drush provision:verify site_test01
 ```
 
 **Expected Result:**
@@ -339,23 +339,23 @@ cat ~/.drush/provision/site_test01.yml | grep verify_date
 ls -la /etc/apache2/sites-enabled/ | grep test01
 
 # Test verbose output
-drush @site_test01 provision-verify -vvv 2>&1 | grep -E "(event|service|verify)"
+drush provision:verify site_test01 -vvv 2>&1 | grep -E "(event|service|verify)"
 ```
 
 #### Step 5.2: Test Verify with Configuration Issues
 
 ```bash
 # Break database credentials
-drush provision-save site_test01 --db_passwd=WRONGPASSWORD
+drush provision:save site_test01 --data='{"db_passwd": "WRONGPASSWORD"}'
 
 # Run verify (should detect issue)
-drush @site_test01 provision-verify
+drush provision:verify site_test01
 
 # Restore correct credentials
-drush provision-save site_test01 --db_passwd=${SITE_DB_PASS}
+drush provision:save site_test01 --data='{"db_passwd": "'${SITE_DB_PASS}'"}'
 
 # Verify again (should succeed)
-drush @site_test01 provision-verify
+drush provision:verify site_test01
 ```
 
 **Expected Result:**
@@ -371,7 +371,7 @@ sudo rm /etc/apache2/sites-available/*test01*.conf
 sudo rm /etc/apache2/sites-enabled/*test01*.conf
 
 # Run verify (should regenerate)
-drush @site_test01 provision-verify
+drush provision:verify site_test01
 
 # Reload Apache
 sudo systemctl reload apache2
@@ -405,18 +405,18 @@ FLUSH PRIVILEGES;
 EOF
 
 # Create site context
-drush provision-save site_delete_test \
-  --context_type=site \
-  --platform=platform_test01 \
-  --uri=delete-test.local.example.com \
-  --db_name=${DISPOSABLE_DB} \
-  --db_user=${DISPOSABLE_USER} \
-  --db_passwd=${DISPOSABLE_PASS} \
-  --db_host=localhost \
-  --db_port=3306
+drush provision:save site_delete_test --type=site --data='{
+  "platform": "platform_test01",
+  "uri": "delete-test.local.example.com",
+  "db_name": "'${DISPOSABLE_DB}'",
+  "db_user": "'${DISPOSABLE_USER}'",
+  "db_passwd": "'${DISPOSABLE_PASS}'",
+  "db_host": "localhost",
+  "db_port": 3306
+}'
 
 # Install site
-drush @site_delete_test provision-install \
+drush provision:install site_delete_test \
   --site_name="Delete Test Site" \
   --account_name=admin \
   --account_pass=admin123
@@ -429,7 +429,7 @@ drush @site_delete_test provision-install \
 #### Step 6.2: Run Site Delete
 
 ```bash
-drush @site_delete_test provision-delete
+drush provision:delete site_delete_test
 ```
 
 **Expected Result:**
@@ -479,37 +479,37 @@ sudo systemctl reload apache2
 
 ```bash
 # 1. Create platform
-drush provision-save platform_lifecycle \
-  --context_type=platform \
-  --root=/var/aegir/platforms/test-lifecycle/web \
-  --server=server_master
+drush provision:save platform_lifecycle --type=platform --data='{
+  "root": "/var/aegir/platforms/test-lifecycle/web",
+  "server": "server_master"
+}'
 
 # 2. Install platform
-drush @platform_lifecycle provision-install
+drush provision:install platform_lifecycle
 
 # 3. Verify platform
-drush @platform_lifecycle provision-verify
+drush provision:verify platform_lifecycle
 
 # 4. Create site
-drush provision-save site_lifecycle \
-  --context_type=site \
-  --platform=platform_lifecycle \
-  --uri=lifecycle.local.example.com \
-  --db_name=site_lifecycle_db \
-  --db_user=site_lifecycle_user \
-  --db_passwd=LifecyclePass123
+drush provision:save site_lifecycle --type=site --data='{
+  "platform": "platform_lifecycle",
+  "uri": "lifecycle.local.example.com",
+  "db_name": "site_lifecycle_db",
+  "db_user": "site_lifecycle_user",
+  "db_passwd": "LifecyclePass123"
+}'
 
 # 5. Install site
-drush @site_lifecycle provision-install --account_name=admin --account_pass=admin
+drush provision:install site_lifecycle --account_name=admin --account_pass=admin
 
 # 6. Verify site
-drush @site_lifecycle provision-verify
+drush provision:verify site_lifecycle
 
 # 7. Delete site
-drush @site_lifecycle provision-delete
+drush provision:delete site_lifecycle
 
 # 8. Delete platform
-drush @platform_lifecycle provision-delete
+drush provision:delete platform_lifecycle
 ```
 
 **Expected Result:**
@@ -523,30 +523,30 @@ drush @platform_lifecycle provision-delete
 
 ```bash
 # Create site 1
-drush provision-save site_multi_01 \
-  --context_type=site \
-  --platform=platform_test01 \
-  --uri=multi01.local.example.com \
-  --db_name=multi01_db \
-  --db_user=multi01_user \
-  --db_passwd=Multi01Pass
+drush provision:save site_multi_01 --type=site --data='{
+  "platform": "platform_test01",
+  "uri": "multi01.local.example.com",
+  "db_name": "multi01_db",
+  "db_user": "multi01_user",
+  "db_passwd": "Multi01Pass"
+}'
 
-drush @site_multi_01 provision-install --account_name=admin --account_pass=admin
+drush provision:install site_multi_01 --account_name=admin --account_pass=admin
 
 # Create site 2
-drush provision-save site_multi_02 \
-  --context_type=site \
-  --platform=platform_test01 \
-  --uri=multi02.local.example.com \
-  --db_name=multi02_db \
-  --db_user=multi02_user \
-  --db_passwd=Multi02Pass
+drush provision:save site_multi_02 --type=site --data='{
+  "platform": "platform_test01",
+  "uri": "multi02.local.example.com",
+  "db_name": "multi02_db",
+  "db_user": "multi02_user",
+  "db_passwd": "Multi02Pass"
+}'
 
-drush @site_multi_02 provision-install --account_name=admin --account_pass=admin
+drush provision:install site_multi_02 --account_name=admin --account_pass=admin
 
 # Verify both sites
-drush @site_multi_01 provision-verify
-drush @site_multi_02 provision-verify
+drush provision:verify site_multi_01
+drush provision:verify site_multi_02
 ```
 
 **Expected Result:**
@@ -577,16 +577,16 @@ curl -I http://multi02.local.example.com
 
 ```bash
 # Create site with wrong DB credentials
-drush provision-save site_bad_db \
-  --context_type=site \
-  --platform=platform_test01 \
-  --uri=baddb.local.example.com \
-  --db_name=nonexistent_db \
-  --db_user=fake_user \
-  --db_passwd=wrong_password
+drush provision:save site_bad_db --type=site --data='{
+  "platform": "platform_test01",
+  "uri": "baddb.local.example.com",
+  "db_name": "nonexistent_db",
+  "db_user": "fake_user",
+  "db_passwd": "wrong_password"
+}'
 
 # Attempt install (should fail gracefully)
-drush @site_bad_db provision-install
+drush provision:install site_bad_db
 ```
 
 **Expected Result:**
@@ -598,16 +598,16 @@ drush @site_bad_db provision-install
 
 ```bash
 # Create platform with non-existent path
-drush provision-save platform_missing \
-  --context_type=platform \
-  --root=/nonexistent/path/to/drupal \
-  --server=server_master
+drush provision:save platform_missing --type=platform --data='{
+  "root": "/nonexistent/path/to/drupal",
+  "server": "server_master"
+}'
 
 # Attempt install (should fail)
-drush @platform_missing provision-install
+drush provision:install platform_missing
 
 # Attempt verify (should fail)
-drush @platform_missing provision-verify
+drush provision:verify platform_missing
 ```
 
 **Expected Result:**
@@ -624,13 +624,13 @@ sudo chmod 555 /var/aegir/platforms/no-write-platform/web
 sudo chown root:root /var/aegir/platforms/no-write-platform/web
 
 # Create platform
-drush provision-save platform_no_write \
-  --context_type=platform \
-  --root=/var/aegir/platforms/no-write-platform/web \
-  --server=server_master
+drush provision:save platform_no_write --type=platform --data='{
+  "root": "/var/aegir/platforms/no-write-platform/web",
+  "server": "server_master"
+}'
 
 # Attempt operations
-drush @platform_no_write provision-verify
+drush provision:verify platform_no_write
 ```
 
 **Expected Result:**
@@ -650,12 +650,12 @@ sudo rm -rf /var/aegir/platforms/no-write-platform
 
 ```bash
 # Remove test sites
-drush @site_test01 provision-delete
-drush @site_multi_01 provision-delete
-drush @site_multi_02 provision-delete
+drush provision:delete site_test01
+drush provision:delete site_multi_01
+drush provision:delete site_multi_02
 
 # Remove test platforms
-drush @platform_test01 provision-delete
+drush provision:delete platform_test01
 
 # Remove test databases
 mysql -uroot -pYOURROOTPASSWORD <<EOF
@@ -773,12 +773,12 @@ sudo chmod -R 775 /var/aegir/platforms/platform-name/web/sites/*/files
 **Solution:**
 ```bash
 # List all contexts
-drush provision-list
+drush provision:list
 
 # Check context file exists
 ls -la ~/.drush/provision/
 
-# Recreate context with provision-save
+# Recreate context with provision:save
 ```
 
 ### Drupal Not Bootstrapping

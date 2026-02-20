@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision import commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionImportCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,8 +24,8 @@ final class ProvisionImportCommands extends DrushCommands {
   /**
    * Import an existing site into Aegir.
    */
-  #[Command(name: 'provision:import', aliases: ['pimport'])]
-  #[Argument(name: 'context', description: 'Context name')]
+  #[CLI\Command(name: 'provision:import', aliases: ['pimport'])]
+  #[CLI\Argument(name: 'context', description: 'Context name')]
   public function importContext(string $context): int {
     try {
       $this->manager->importContext($context);

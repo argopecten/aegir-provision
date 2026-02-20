@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision login reset commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionLoginResetCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -24,8 +24,8 @@ final class ProvisionLoginResetCommands extends DrushCommands {
   /**
    * Reset admin login for a site.
    */
-  #[Command(name: 'provision:login-reset', aliases: ['plogin-reset'])]
-  #[Argument(name: 'context', description: 'Site context name')]
+  #[CLI\Command(name: 'provision:login-reset', aliases: ['plogin-reset'])]
+  #[CLI\Argument(name: 'context', description: 'Site context name')]
   public function loginReset(string $context): int {
     try {
       $this->manager->loginReset($context);

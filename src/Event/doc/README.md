@@ -178,7 +178,7 @@ Fired during backup deployment to a site.
 
 ### Typical Event Flow
 
-For a `provision-install` command:
+For a `provision:install` command:
 
 1. **VALIDATE_INSTALL** - Validate inputs before starting
    - Subscriber throws exception → operation aborts

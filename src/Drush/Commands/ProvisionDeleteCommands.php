@@ -2,17 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Drush\Commands\provision;
+namespace Aegir\Provision\Drush\Commands;
 
 use Aegir\Provision\ProvisionManager;
-use Drush\Attributes\Argument;
-use Drush\Attributes\Command;
-use Drush\Attributes\Option;
+use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 
 /**
  * Provision delete commands.
  */
+#[CLI\Bootstrap(level: 0)]
 final class ProvisionDeleteCommands extends DrushCommands {
   use ProvisionAutowireTrait;
 
@@ -25,10 +24,10 @@ final class ProvisionDeleteCommands extends DrushCommands {
   /**
    * Delete a context.
    */
-  #[Command(name: 'provision:delete', aliases: ['pdelete'])]
-  #[Argument(name: 'context', description: 'Context name')]
-  #[Option(name: 'delete-files', description: 'Remove site files on disk', type: 'boolean')]
-  #[Option(name: 'delete-db', description: 'Drop site database and db user', type: 'boolean')]
+  #[CLI\Command(name: 'provision:delete', aliases: ['pdelete'])]
+  #[CLI\Argument(name: 'context', description: 'Context name')]
+  #[CLI\Option(name: 'delete-files', description: 'Remove site files on disk')]
+  #[CLI\Option(name: 'delete-db', description: 'Drop site database and db user')]
   public function delete(
     string $context,
     array $options = ['delete-files' => false, 'delete-db' => false]
