@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/var/aegir/drupal/aegir-2601/vendor/argopecten/aegir-provision/**)",
+      "Edit(/var/aegir/drupal/aegir-2601/vendor/argopecten/aegir-provision/src/**)",
+      "Edit(/var/aegir/drupal/aegir-2601/vendor/argopecten/aegir-provision/.claude/**)",
+      "Write(/var/aegir/drupal/aegir-2601/vendor/argopecten/aegir-provision/src/**)",
+      "Write(/var/aegir/drupal/aegir-2601/vendor/argopecten/aegir-provision/tests/**)",
+      "Write(/var/aegir/drupal/aegir-2601/vendor/argopecten/aegir-provision/.claude/**)",
+      "Bash(drush list --filter=provision)",
+      "Bash(drush provision:verify *)",
+      "Bash(drush site:alias *)",
+      "Bash(./vendor/bin/phpunit *)"
+    ]
+  }
+}
