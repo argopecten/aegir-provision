@@ -14,7 +14,7 @@ Complete reference for all Aegir Provision components and their APIs.
 - [Drush Package](#drush-package) - Command classes and service registry
 
 **See also**:
-- [Core Concepts](concepts.md) - Architectural overview
+- [Core Concepts](architecture.md) - Architectural overview
 - [Extension System](extension-system.md) - Creating extensions
 - Detailed package docs: [src/*/doc/README.md](../../src/doc/README.md)
 
@@ -903,8 +903,8 @@ See [Extension System](extension-system.md) for complete list and usage.
 ## Further Reading
 
 ### User Guides
-- **[Core Concepts](concepts.md)** - Understanding contexts and workflows
-- **[Quick Start](quickstart.md)** - Installation and first operations
+- **[Core Concepts](architecture.md)** - Understanding contexts and workflows
+- **[Quick Start](../Home.md)** - Installation and first operations
 - **[Extension System](extension-system.md)** - Creating event subscribers
 
 ### Technical Documentation

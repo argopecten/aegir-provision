@@ -30,13 +30,13 @@ drush provision:save server_master --type=server --data='{
 ```
 
 **Expected Result:**
-- Server context file created at `~/.drush/provision/server_master.yml`
+- Server context file created at `drush/sites/aegir/server_master.site.yml`
 - No error messages
 - Success confirmation message displayed
 
 **Validation:**
 ```bash
-cat ~/.drush/provision/server_master.yml
+cat drush/sites/aegir/server_master.site.yml
 drush provision:status server_master
 ```
 
@@ -83,12 +83,12 @@ drush provision:save platform_test01 --type=platform --data='{
 ```
 
 **Expected Result:**
-- Platform context file created at `~/.drush/provision/platform_test01.yml`
+- Platform context file created at `drush/sites/aegir/platform_test01.site.yml`
 - Success message displayed
 
 **Validation:**
 ```bash
-cat ~/.drush/provision/platform_test01.yml
+cat drush/sites/aegir/platform_test01.site.yml
 drush provision:status platform_test01
 ```
 
@@ -136,7 +136,7 @@ drush provision:verify platform_test01
 drush provision:verify platform_test01 -vvv 2>&1 | grep -i "event"
 
 # Verify platform context updated
-cat ~/.drush/provision/platform_test01.yml | grep verify_date
+cat drush/sites/aegir/platform_test01.site.yml | grep verify_date
 ```
 
 #### Step 2.2: Test Verify with Invalid Path
@@ -183,14 +183,14 @@ drush provision:delete platform_delete_test
 
 **Expected Result:**
 - Delete event dispatched
-- Context removed from `~/.drush/provision/`
+- Context removed from `drush/sites/aegir/`
 - Command completes successfully
 - Confirmation message displayed
 
 **Validation:**
 ```bash
 # Verify context file removed
-ls ~/.drush/provision/platform_delete_test.yml
+ls drush/sites/aegir/platform_delete_test.site.yml
 # Should show: No such file or directory
 
 # Verify platform directory still exists (Provision doesn't delete files)
@@ -250,13 +250,13 @@ drush provision:save site_test01 --type=site --data='{
 ```
 
 **Expected Result:**
-- Site context created at `~/.drush/provision/site_test01.yml`
+- Site context created at `drush/sites/aegir/site_test01.site.yml`
 - All database credentials stored
 - Success message displayed
 
 **Validation:**
 ```bash
-cat ~/.drush/provision/site_test01.yml
+cat drush/sites/aegir/site_test01.site.yml
 drush provision:status site_test01
 ```
 
@@ -333,7 +333,7 @@ drush provision:verify site_test01
 **Validation:**
 ```bash
 # Check verify updated context
-cat ~/.drush/provision/site_test01.yml | grep verify_date
+cat drush/sites/aegir/site_test01.site.yml | grep verify_date
 
 # Verify vhost symlink exists
 ls -la /etc/apache2/sites-enabled/ | grep test01
@@ -434,7 +434,7 @@ drush provision:delete site_delete_test
 
 **Expected Result:**
 - Delete event dispatched
-- Site context removed from `~/.drush/provision/`
+- Site context removed from `drush/sites/aegir/`
 - Apache vhost disabled and removed
 - Database dropped (verify this behavior)
 - Success message displayed
@@ -442,7 +442,7 @@ drush provision:delete site_delete_test
 **Validation:**
 ```bash
 # Verify context removed
-ls ~/.drush/provision/site_delete_test.yml
+ls drush/sites/aegir/site_delete_test.site.yml
 # Should show: No such file or directory
 
 # Verify Apache vhost removed
@@ -776,7 +776,7 @@ sudo chmod -R 775 /var/aegir/platforms/platform-name/web/sites/*/files
 drush provision:list
 
 # Check context file exists
-ls -la ~/.drush/provision/
+ls -la drush/sites/aegir/
 
 # Recreate context with provision:save
 ```

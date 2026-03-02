@@ -1320,7 +1320,7 @@ class MySubscriberTest extends TestCase
 
 ✅ **Completed**:
 - Event base class (`ProvisionEvent.php`)
-- Event constants (`ProvisionEvents.php`) - 52 events defined
+- Event constants (`ProvisionEvents.php`) - 51 events defined
 - Specific event classes (InstallEvent, VerifyEvent, BackupEvent, RestoreEvent, MigrateEvent, CloneEvent, DeleteEvent, DeployEvent)
 - EventDispatcher integration in ProvisionManager
 - Service registration in Drush container

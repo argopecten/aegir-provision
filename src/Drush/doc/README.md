@@ -249,5 +249,5 @@ public function install(string $site): int
 - [Drush 13 Documentation](https://www.drush.org/13.x/) - Official Drush docs
 - [Symfony Console](https://symfony.com/doc/current/console.html) - Console component docs
 - [API Reference](../../../doc/guides/api-reference.md) - ProvisionManager API
-- [Quick Start](../../../doc/guides/quickstart.md) - Command usage examples
+- [Quick Start](../../../doc/Home.md) - Command usage examples
 - [D11 Architecture](../../../doc/provision-d11.md) - Command integration details

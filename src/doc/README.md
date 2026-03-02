@@ -209,8 +209,8 @@ Each package has detailed documentation in its `doc/` subdirectory:
 ## Related Documentation
 
 ### User Documentation
-- [Quick Start Guide](../doc/guides/quickstart.md) - Get started quickly
-- [Core Concepts](../doc/guides/concepts.md) - Understand the system
+- [Quick Start Guide](../doc/Home.md) - Get started quickly
+- [Core Concepts](../doc/guides/architecture.md) - Understand the system
 - [Extension System](../doc/guides/extension-system.md) - Create extensions
 
 ### Technical Documentation

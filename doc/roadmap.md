@@ -12,7 +12,7 @@ The foundational architecture for Drupal 11+ is fully implemented:
 
 - ✅ **All D7 commands documented** in [provision-d7.md](provision-d7.md)
 - ✅ **D11 architecture documented** in [provision-d11.md](provision-d11.md)
-- ⚠️ **All 16 core commands implemented** but need refactoring to proper Drush 13.7+ patterns
+- ⚠️ **All 17 core commands implemented** but need refactoring to proper Drush 13.7+ patterns
 - ✅ **Modern PHP 8.3+ architecture** with strict types, DI, and Symfony components
 - ✅ **Service architecture complete**: Apache, MySQL, SSL, Settings generation
 
@@ -37,8 +37,8 @@ The extension system allows third-party code to integrate with provision operati
 
 1. **Event System** ✅ - Symfony EventDispatcher for lifecycle hooks
    - [x] Added `symfony/event-dispatcher` dependency
-   - [x] Created base `ProvisionEvent` class and `ProvisionEvents` constants (52 events)
-   - [x] Created 8 specific event classes (InstallEvent, VerifyEvent, BackupEvent, RestoreEvent, MigrateEvent, CloneEvent, DeleteEvent, DeployEvent)
+   - [x] Created base `ProvisionEvent` class and `ProvisionEvents` constants (51 events)
+   - [x] Created 9 specific event classes (InstallEvent, VerifyEvent, BackupEvent, RestoreEvent, MigrateEvent, CloneEvent, DeleteEvent, DeployEvent, CronEvent)
    - [x] Integrated EventDispatcher in ProvisionManager
    - [x] Added event dispatching to install() and delete() methods
    - [x] Registered EventDispatcher in ProvisionServiceRegistry
@@ -46,14 +46,14 @@ The extension system allows third-party code to integrate with provision operati
 2. **Documentation & Examples** ✅
    - [x] Created comprehensive [guides/extension-system.md](guides/extension-system.md)
    - [x] Created [examples/CustomValidationSubscriber.php](../examples/CustomValidationSubscriber.php)
-   - [x] Documented all 52 available events
+   - [x] Documented all 51 available events
    - [x] Provided migration guide from D7 hooks
    - [x] Included testing examples
 
 ### Phase 1 Results
 
 - ✅ Event system infrastructure complete
-- ✅ 52 event constants defined covering all operations
+- ✅ 51 event constants defined covering all operations
 - ✅ Install and delete operations fully instrumented
 - ✅ Complete documentation for extension authors
 - ✅ Working example subscriber provided
@@ -307,7 +307,7 @@ $path = $templates->getTemplatePath('apache/vhost.tpl.php');
 
 ### Success Criteria
 
-- [x] ✅ Event system functional with 52 lifecycle events across all operations
+- [x] ✅ Event system functional with 51 lifecycle events across all operations
 - [x] ✅ Service plugin system with interfaces, registry, and example Nginx service
 - [x] ✅ Template override system with priority-based loading
 - [x] ✅ Extension documentation complete with comprehensive examples
@@ -341,7 +341,7 @@ $path = $templates->getTemplatePath('apache/vhost.tpl.php');
 #### Unit Tests (Priority: CRITICAL)
 
 **Core Classes to Test**:
-- [ ] Context - Immutable data structure, getters/setters
+- [ ] Context - Identity immutable, properties mutable, getters/setters
 - [ ] ContextRepository - Load/save/delete operations
 - [ ] ContextType - Type validation and constants
 - [ ] AliasStore - YAML serialization/deserialization
@@ -936,7 +936,7 @@ interface RemoteBackupInterface {
 - [x] Modern PHP 8.3+ class-based design with strict types
 - [x] Drush 13.7+ command system with Symfony Console
 - [x] Context management (Context, ContextRepository, ContextType, AliasStore)
-- [x] YAML alias storage in `~/.drush/sites/aegir/`
+- [x] YAML alias storage in `drush/sites/aegir/`
 - [x] Service architecture (ApacheService, MySqlService, SettingsWriter, SslManager)
 - [x] Infrastructure classes (Filesystem, ProcessRunner, ConfigPaths, PlatformRoot)
 - [x] Template system (TemplateRenderer with PHP templates)
@@ -945,7 +945,7 @@ interface RemoteBackupInterface {
 
 ### ✅ Command Implementation (January 2026)
 
-All 16 core commands implemented in `src/Drush/Commands/`:
+All 17 core commands implemented in `src/Drush/Commands/`:
 
 - [x] ProvisionSaveCommand - Save/update context
 - [x] ProvisionVerifyCommand - Verify server/platform/site
@@ -962,6 +962,7 @@ All 16 core commands implemented in `src/Drush/Commands/`:
 - [x] ProvisionUnlockCommand - Unlock site
 - [x] ProvisionDeleteCommand - Delete context
 - [x] ProvisionLoginResetCommand - Reset admin login
+- [x] ProvisionCronCommands - Cron job management
 - [x] BackendParseCommand - Parse backend output
 
 ### ✅ Service Implementation (January 2026)
@@ -1103,7 +1104,7 @@ These features are not critical for core functionality but would be nice additio
 ### Must Have (Blocking Release)
 
 **Core Functionality**: ✅ COMPLETE
-- ✅ All 17 core commands working
+- ✅ All 17 core commands working (including ProvisionCronCommands)
 - ✅ Extension/hook system functional (event system)
 - ✅ Service plugin system implemented
 - ✅ Template override system complete

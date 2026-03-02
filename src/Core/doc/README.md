@@ -168,7 +168,7 @@ example.com:
 
 ## Related Documentation
 
-- [Core Concepts](../../../doc/guides/concepts.md) - Context system explained
+- [Core Concepts](../../../doc/guides/architecture.md) - Context system explained
 - [D11 Architecture](../../../doc/provision-d11.md) - Detailed architecture
 - [API Reference](../../../doc/guides/api-reference.md) - Complete API documentation
-- [Quick Start](../../../doc/guides/quickstart.md) - Context usage examples
+- [Quick Start](../../../doc/Home.md) - Context usage examples

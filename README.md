@@ -37,8 +37,8 @@ drush provision-install @example.com
 **Start here**: [doc/Home.md](doc/Home.md) - Main documentation index
 
 ### Getting Started
-- [Quick Start Guide](doc/guides/quickstart.md) - Installation and first steps
-- [Core Concepts](doc/guides/concepts.md) - Understanding contexts and workflows
+- [Quick Start Guide](doc/Home.md) - Installation and first steps
+- [Core Concepts](doc/guides/architecture.md) - Understanding contexts and workflows
 
 ### Technical Documentation
 - [D11 Architecture](doc/provision-d11.md) - Complete implementation details

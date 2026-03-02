@@ -10,7 +10,7 @@
 The Event package provides a Symfony EventDispatcher-based system for extending Aegir Provision:
 
 - **ProvisionEvent** - Base event class
-- **ProvisionEvents** - Event name constants (52 events)
+- **ProvisionEvents** - Event name constants (51 events)
 - **Specific Event Classes** - Type-safe event classes for each operation
 
 This enables third-party code to:
