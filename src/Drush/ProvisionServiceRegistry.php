@@ -10,6 +10,7 @@ use Aegir\Provision\Core\ContextRepository;
 use Aegir\Provision\Core\Filesystem;
 use Aegir\Provision\Core\ProcessRunner;
 use Aegir\Provision\ProvisionManager;
+use Aegir\Provision\Service\Cron\SystemCronService;
 use Aegir\Provision\Service\Db\MySqlService;
 use Aegir\Provision\Service\Http\ApacheService;
 use Aegir\Provision\Service\ServiceRegistry;
@@ -57,8 +58,7 @@ final class ProvisionServiceRegistry {
         $runner = $container->get(ProcessRunner::class);
         $templates = $container->get(TemplateRenderer::class);
         
-        // Create a minimal ConfigPaths for service initialization
-        $paths = new ConfigPaths('/var/aegir');
+        $paths = new ConfigPaths();
         
         // Register service factories for lazy instantiation
         // Apache HTTP service factory
@@ -75,6 +75,11 @@ final class ProvisionServiceRegistry {
         // SSL manager factory
         $registry->registerFactory('ssl', 'default', function () use ($paths, $filesystem, $runner) {
           return new SslManager($paths, $filesystem, $runner);
+        });
+
+        // System cron service factory
+        $registry->registerFactory('cron', 'system', function () use ($runner) {
+          return new SystemCronService($runner);
         });
         
         return $registry;

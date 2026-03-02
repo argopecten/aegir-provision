@@ -9,9 +9,8 @@ use Symfony\Component\Yaml\Yaml;
 final class AliasStore {
   private string $defaultPath;
 
-  public function __construct(?string $defaultPath = NULL) {
-    $home = rtrim((string) getenv('HOME'), '/');
-    $this->defaultPath = $defaultPath ?? ($home . '/.drush/sites/aegir');
+  public function __construct(?string $defaultPath = null) {
+    $this->defaultPath = $defaultPath ?? ConfigPaths::projectRoot() . '/drush/sites/aegir';
   }
 
   /**

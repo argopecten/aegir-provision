@@ -34,8 +34,7 @@ final class PathResolver {
    * Resolve all server paths as a value object.
    */
   public function resolveServerPaths(Context $server): ServerPaths {
-    $defaultPaths = new ConfigPaths();
-    $aegirRoot = (string) $server->get('aegir_root', $defaultPaths->aegirRoot());
+    $aegirRoot = ConfigPaths::projectRoot();
     $configPath = (string) $server->get('config_path', $aegirRoot . '/config');
     $backupPath = (string) $server->get('backup_path', $aegirRoot . '/backups');
     $sslPath = $server->get('ssl_path') ? (string) $server->get('ssl_path') : null;
@@ -55,7 +54,7 @@ final class PathResolver {
 
   public function buildConfigPaths(Context $server): ConfigPaths {
     $paths = $this->resolveServerPaths($server);
-    return new ConfigPaths($paths->root, $paths->configPath);
+    return new ConfigPaths($paths->configPath);
   }
 
   public function detectDrupalVersion(string $docroot): ?string {

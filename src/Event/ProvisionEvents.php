@@ -59,4 +59,16 @@ final class ProvisionEvents
     public const ROLLBACK_MIGRATE = 'provision.rollback.migrate';
     public const ROLLBACK_CLONE = 'provision.rollback.clone';
     public const ROLLBACK_DEPLOY = 'provision.rollback.deploy';
+
+    // Cron add events
+    public const VALIDATE_CRON_ADD = 'provision.validate.cron_add';
+    public const BEFORE_CRON_ADD = 'provision.before.cron_add';
+    public const AFTER_CRON_ADD = 'provision.after.cron_add';
+    public const ROLLBACK_CRON_ADD = 'provision.rollback.cron_add';
+
+    // Cron delete events
+    public const VALIDATE_CRON_DELETE = 'provision.validate.cron_delete';
+    public const BEFORE_CRON_DELETE = 'provision.before.cron_delete';
+    public const AFTER_CRON_DELETE = 'provision.after.cron_delete';
+    public const ROLLBACK_CRON_DELETE = 'provision.rollback.cron_delete';
 }

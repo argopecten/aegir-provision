@@ -29,6 +29,7 @@ final class ServiceRegistry
         'http' => 'apache',
         'db' => 'mysql',
         'ssl' => 'default',
+        'cron' => 'system',
     ];
 
     /**
@@ -153,6 +154,7 @@ final class ServiceRegistry
             'http' => HttpServiceInterface::class,
             'db' => DbServiceInterface::class,
             'ssl' => SslServiceInterface::class,
+            'cron' => CronServiceInterface::class,
             default => throw new \InvalidArgumentException("Unknown service type: {$type}"),
         };
 

@@ -12,6 +12,7 @@ use Aegir\Provision\Config\TemplateRenderer;
 use Aegir\Provision\Manager\BackupRestoreManager;
 use Aegir\Provision\Manager\CloneManager;
 use Aegir\Provision\Manager\ContextLoader;
+use Aegir\Provision\Manager\CronManager;
 use Aegir\Provision\Manager\DatabaseManager;
 use Aegir\Provision\Manager\DeleteManager;
 use Aegir\Provision\Manager\InstallationManager;
@@ -20,6 +21,7 @@ use Aegir\Provision\Manager\MigrationManager;
 use Aegir\Provision\Manager\PathResolver;
 use Aegir\Provision\Manager\VerificationManager;
 use Aegir\Provision\Service\ServiceRegistry;
+use Aegir\Provision\Core\ValueObject\CronJobConfig;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -39,6 +41,7 @@ final class ProvisionManager {
   private CloneManager $cloneManager;
   private MigrationManager $migrationManager;
   private LockManager $lockManager;
+  private CronManager $cronManager;
 
   public function __construct(
     ContextRepository $contexts,
@@ -84,6 +87,9 @@ final class ProvisionManager {
     );
     $this->lockManager = new LockManager(
       $contexts, $filesystem, $logger, $dispatcher, $loader, $pathResolver
+    );
+    $this->cronManager = new CronManager(
+      $logger, $dispatcher, $serviceRegistry
     );
   }
 
@@ -182,6 +188,52 @@ final class ProvisionManager {
    */
   public function getServiceRegistry(): ServiceRegistry {
     return $this->serviceRegistry;
+  }
+
+  /**
+   * Add or update a crontab entry.
+   */
+  public function addCron(CronJobConfig $config, ?string $serverContext = null): void {
+    $server = null;
+    if ($serverContext !== null) {
+      try {
+        $server = $this->contexts->load($serverContext);
+      } catch (\RuntimeException) {
+        // Server context not available — proceed without it.
+      }
+    }
+    $this->cronManager->add($config, $server);
+  }
+
+  /**
+   * Delete a crontab entry.
+   */
+  public function deleteCron(string $identifier, ?string $serverContext = null): void {
+    $server = null;
+    if ($serverContext !== null) {
+      try {
+        $server = $this->contexts->load($serverContext);
+      } catch (\RuntimeException) {
+        // Server context not available — proceed without it.
+      }
+    }
+    $this->cronManager->delete($identifier, $server);
+  }
+
+  /**
+   * Check whether a crontab entry exists.
+   */
+  public function cronStatus(string $identifier): bool {
+    return $this->cronManager->status($identifier);
+  }
+
+  /**
+   * List all Aegir-managed crontab entries.
+   *
+   * @return array<string, string>
+   */
+  public function cronList(): array {
+    return $this->cronManager->list();
   }
 
   /**
